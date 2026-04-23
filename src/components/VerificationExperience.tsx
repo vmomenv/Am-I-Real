@@ -1,3 +1,5 @@
+'use client';
+
 import { ChallengeCard } from '@/src/components/ChallengeCard';
 import { ChallengeStatusPanel } from '@/src/components/ChallengeStatusPanel';
 import { VerificationShell } from '@/src/components/VerificationShell';
@@ -37,6 +39,24 @@ export function VerificationExperience() {
         progressValue={0}
         siteName={activeConfig.displaySiteName}
       />
+    );
+  }
+
+  if (viewState === 'passed' || viewState === 'failed') {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-6 py-20">
+        <section className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-cyan-950/30 backdrop-blur">
+          <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">
+            {activeConfig.brandName}
+          </p>
+          <h1 className="mt-4 text-3xl font-semibold text-white">
+            {viewState === 'passed' ? '验证已完成' : '验证未通过'}
+          </h1>
+          {errorMessage ? (
+            <p className="mt-4 text-base leading-7 text-slate-300">{errorMessage}</p>
+          ) : null}
+        </section>
+      </main>
     );
   }
 
