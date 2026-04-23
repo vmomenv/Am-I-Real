@@ -10,6 +10,7 @@ import type {
   PublicChallengeConfig,
   PublicRound,
 } from '@/src/lib/challenge-types';
+import type { AudioControllerPort } from '@/src/lib/audio-controller';
 
 interface ChallengeMetrics {
   currentRoundIndex: number;
@@ -25,7 +26,11 @@ const EMPTY_METRICS: ChallengeMetrics = {
   remainingMistakesBeforeFailure: 0,
 };
 
-export function useChallengeFlow() {
+interface UseChallengeFlowOptions {
+  audioController?: AudioControllerPort;
+}
+
+export function useChallengeFlow({ audioController }: UseChallengeFlowOptions = {}) {
   const [viewState, setViewState] = useState<ChallengeViewState>('loading');
   const [config, setConfig] = useState<PublicChallengeConfig | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -33,6 +38,35 @@ export function useChallengeFlow() {
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<ChallengeMetrics>(EMPTY_METRICS);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+
+  function getRemainingMistakes(activeConfig: PublicChallengeConfig | null) {
+    if (!activeConfig) {
+      return 0;
+    }
+
+    return activeConfig.totalRounds - activeConfig.requiredPassCount + 1;
+  }
+
+  function resetToShell(nextState: Extract<ChallengeViewState, 'readyToVerify' | 'expired'>) {
+    setSessionId(null);
+    setRound(null);
+    setSelectedOptionId(null);
+    setRedirectUrl(null);
+    setMetrics({
+      ...EMPTY_METRICS,
+      remainingMistakesBeforeFailure: getRemainingMistakes(config),
+    });
+    setViewState(nextState);
+  }
+
+  function stopAudio() {
+    if (!audioController) {
+      return;
+    }
+
+    void audioController.stop().catch(() => undefined);
+  }
 
   useEffect(() => {
     let isActive = true;
@@ -71,6 +105,11 @@ export function useChallengeFlow() {
 
   async function beginChallenge() {
     setErrorMessage(null);
+    setRedirectUrl(null);
+
+    if (config?.audioUrl) {
+      void audioController?.start(config.audioUrl).catch(() => undefined);
+    }
 
     try {
       const response = await startChallenge();
@@ -95,6 +134,7 @@ export function useChallengeFlow() {
       });
       setViewState('inChallenge');
     } catch {
+      stopAudio();
       setErrorMessage('启动验证失败，请稍后重试');
     }
   }
@@ -129,21 +169,15 @@ export function useChallengeFlow() {
       }
 
       if (response.status === 'expired') {
-        setSessionId(null);
-        setRound(null);
-        setSelectedOptionId(null);
-        setMetrics((current) => ({
-          ...EMPTY_METRICS,
-          remainingMistakesBeforeFailure: current.remainingMistakesBeforeFailure,
-        }));
+        stopAudio();
         setErrorMessage(response.message);
-        setViewState('readyToVerify');
+        resetToShell('expired');
         return;
       }
 
-      setErrorMessage(
-        response.status === 'failed' ? response.message : '验证通过，正在跳转',
-      );
+      stopAudio();
+      setRedirectUrl(response.status === 'passed' ? response.redirectUrl : null);
+      setErrorMessage(response.status === 'failed' ? response.message : null);
       setViewState(response.status);
     } catch {
       setErrorMessage('提交超时，请重试');
@@ -151,15 +185,23 @@ export function useChallengeFlow() {
     }
   }
 
+  function restartChallenge() {
+    stopAudio();
+    setErrorMessage(null);
+    resetToShell('readyToVerify');
+  }
+
   return {
     config,
     round,
     selectedOptionId,
+    redirectUrl,
     errorMessage,
     viewState,
     metrics,
     setSelectedOptionId,
     beginChallenge,
     submitSelection,
+    restartChallenge,
   };
 }

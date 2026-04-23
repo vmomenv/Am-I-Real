@@ -23,6 +23,7 @@ export function ChallengeCard({
 }: ChallengeCardProps) {
   const [currentSelection, setCurrentSelection] = useState<string | null>(selectedOptionId);
   const [failedImageIds, setFailedImageIds] = useState<string[]>([]);
+  const hasImageErrors = failedImageIds.length > 0;
 
   useEffect(() => {
     setCurrentSelection(selectedOptionId);
@@ -37,6 +38,10 @@ export function ChallengeCard({
     setFailedImageIds((current) =>
       current.includes(optionId) ? current : [...current, optionId],
     );
+  }
+
+  function handleReload() {
+    setFailedImageIds([]);
   }
 
   return (
@@ -76,9 +81,21 @@ export function ChallengeCard({
           );
         })}
       </div>
+      {hasImageErrors ? (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <span>图片加载失败，请重新载入后再提交。</span>
+          <button
+            className="rounded-full border border-amber-300/40 px-3 py-1 text-xs font-medium text-amber-50"
+            onClick={handleReload}
+            type="button"
+          >
+            重新载入
+          </button>
+        </div>
+      ) : null}
       <button
         className="mt-6 inline-flex rounded-full bg-cyan-400 px-6 py-3 text-sm font-medium text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-        disabled={!currentSelection || isSubmitting}
+        disabled={!currentSelection || hasImageErrors || isSubmitting}
         onClick={() => currentSelection && onSubmit(currentSelection)}
         type="button"
       >

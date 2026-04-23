@@ -1,9 +1,13 @@
 'use client';
 
+import { useEffect } from 'react';
+
 import { ChallengeCard } from '@/src/components/ChallengeCard';
 import { ChallengeStatusPanel } from '@/src/components/ChallengeStatusPanel';
+import { ResultCard } from '@/src/components/ResultCard';
 import { VerificationShell } from '@/src/components/VerificationShell';
 import { useChallengeFlow } from '@/src/hooks/useChallengeFlow';
+import type { AudioControllerPort } from '@/src/lib/audio-controller';
 
 const FALLBACK_CONFIG = {
   brandName: 'Groundflare',
@@ -12,27 +16,65 @@ const FALLBACK_CONFIG = {
   requiredPassCount: 7,
 };
 
-export function VerificationExperience() {
+const REDIRECT_DELAY_MS = 1500;
+
+interface VerificationExperienceProps {
+  audioController?: AudioControllerPort;
+  onRedirect?: (url: string) => void;
+  redirectDelayMs?: number;
+}
+
+export function VerificationExperience({
+  audioController,
+  onRedirect,
+  redirectDelayMs = REDIRECT_DELAY_MS,
+}: VerificationExperienceProps) {
   const {
     config,
     round,
     selectedOptionId,
+    redirectUrl,
     errorMessage,
     viewState,
     metrics,
     setSelectedOptionId,
     beginChallenge,
     submitSelection,
-  } = useChallengeFlow();
+    restartChallenge,
+  } = useChallengeFlow({ audioController });
 
   const activeConfig = config ?? FALLBACK_CONFIG;
 
-  if (viewState === 'loading' || viewState === 'readyToVerify' || viewState === 'error') {
+  useEffect(() => {
+    if (viewState !== 'passed' || !redirectUrl) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      if (onRedirect) {
+        onRedirect(redirectUrl);
+        return;
+      }
+
+      window.location.assign(redirectUrl);
+    }, redirectDelayMs);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [onRedirect, redirectDelayMs, redirectUrl, viewState]);
+
+  if (
+    viewState === 'loading' ||
+    viewState === 'readyToVerify' ||
+    viewState === 'expired' ||
+    viewState === 'error'
+  ) {
     return (
       <VerificationShell
         brandName={activeConfig.brandName}
         buttonDisabled={viewState === 'loading'}
-        buttonLabel={viewState === 'loading' ? '正在加载...' : '开始验证'}
+        buttonLabel={viewState === 'loading' ? '正在加载...' : '我是人类'}
         errorMessage={errorMessage}
         onAction={beginChallenge}
         progressMax={activeConfig.totalRounds}
@@ -44,19 +86,13 @@ export function VerificationExperience() {
 
   if (viewState === 'passed' || viewState === 'failed') {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6 py-20">
-        <section className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-cyan-950/30 backdrop-blur">
-          <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">
-            {activeConfig.brandName}
-          </p>
-          <h1 className="mt-4 text-3xl font-semibold text-white">
-            {viewState === 'passed' ? '验证已完成' : '验证未通过'}
-          </h1>
-          {errorMessage ? (
-            <p className="mt-4 text-base leading-7 text-slate-300">{errorMessage}</p>
-          ) : null}
-        </section>
-      </main>
+      <ResultCard
+        actionLabel={viewState === 'failed' ? '重新验证' : undefined}
+        brandName={activeConfig.brandName}
+        message={viewState === 'passed' ? '验证通过，正在跳转' : errorMessage}
+        onAction={viewState === 'failed' ? restartChallenge : undefined}
+        title={viewState === 'passed' ? '验证通过' : '你不是人类！'}
+      />
     );
   }
 
