@@ -11,7 +11,7 @@ import type { AudioControllerPort } from '@/src/lib/audio-controller';
 
 const FALLBACK_CONFIG = {
   brandName: 'Groundflare',
-  displaySiteName: 'Groundflare Verification',
+  displaySiteName: 'www.spark-app.store',
   totalRounds: 10,
   requiredPassCount: 7,
 };
@@ -22,12 +22,14 @@ interface VerificationExperienceProps {
   audioController?: AudioControllerPort;
   onRedirect?: (url: string) => void;
   redirectDelayMs?: number;
+  preCheckDelayMs?: number;
 }
 
 export function VerificationExperience({
   audioController,
   onRedirect,
   redirectDelayMs = REDIRECT_DELAY_MS,
+  preCheckDelayMs,
 }: VerificationExperienceProps) {
   const {
     config,
@@ -41,7 +43,7 @@ export function VerificationExperience({
     beginChallenge,
     submitSelection,
     restartChallenge,
-  } = useChallengeFlow({ audioController });
+  } = useChallengeFlow({ audioController, preCheckDelayMs });
 
   const activeConfig = config ?? FALLBACK_CONFIG;
 
@@ -71,28 +73,26 @@ export function VerificationExperience({
     viewState === 'error'
   ) {
     return (
-      <VerificationShell
-        brandName={activeConfig.brandName}
-        buttonDisabled={viewState === 'loading'}
-        buttonLabel={viewState === 'loading' ? '正在加载...' : '我是人类'}
-        errorMessage={errorMessage}
-        onAction={beginChallenge}
-        progressMax={activeConfig.totalRounds}
-        progressValue={0}
-        siteName={activeConfig.displaySiteName}
-      />
-    );
+        <VerificationShell
+          brandName={activeConfig.brandName}
+          buttonDisabled={viewState === 'loading'}
+          buttonLabel="我是人类"
+          errorMessage={errorMessage}
+          onAction={beginChallenge}
+          siteName={activeConfig.displaySiteName}
+        />
+      );
   }
 
   if (viewState === 'passed' || viewState === 'failed') {
     return (
-      <ResultCard
-        actionLabel={viewState === 'failed' ? '重新验证' : undefined}
-        brandName={activeConfig.brandName}
-        message={viewState === 'passed' ? '验证通过，正在跳转' : errorMessage}
-        onAction={viewState === 'failed' ? restartChallenge : undefined}
-        title={viewState === 'passed' ? '验证通过' : '你不是人类！'}
-      />
+        <ResultCard
+          actionLabel={viewState === 'failed' ? '重新验证' : undefined}
+          brandName={activeConfig.brandName}
+          message={viewState === 'passed' ? '系统已确认当前验证会话通过，正在跳转到目标站点。' : errorMessage}
+          onAction={viewState === 'failed' ? restartChallenge : undefined}
+          title={viewState === 'passed' ? '验证通过' : '你不是人类！'}
+        />
     );
   }
 
@@ -101,7 +101,8 @@ export function VerificationExperience({
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-6 py-10 lg:flex-row">
+    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]" data-testid="challenge-layout">
       <div className="flex-1">
         <ChallengeCard
           isSubmitting={viewState === 'submitting'}
@@ -110,9 +111,9 @@ export function VerificationExperience({
           options={round.options}
           prompt={round.prompt}
           selectedOptionId={selectedOptionId}
-          submitLabel={viewState === 'submitting' ? '提交中...' : '提交'}
+          submitLabel={viewState === 'submitting' ? '验证中...' : '验证'}
         />
-        {errorMessage ? <p className="mt-4 text-sm text-rose-200">{errorMessage}</p> : null}
+        {errorMessage ? <p className="mt-4 text-sm text-rose-700">{errorMessage}</p> : null}
       </div>
       <div className="w-full max-w-sm">
         <ChallengeStatusPanel
@@ -122,6 +123,7 @@ export function VerificationExperience({
           requiredPassCount={activeConfig.requiredPassCount}
           totalRounds={activeConfig.totalRounds}
         />
+      </div>
       </div>
     </main>
   );

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 
 import { VerificationExperience } from '../VerificationExperience';
@@ -26,8 +26,49 @@ function createRound(roundId: string, prefix: string) {
   };
 }
 
+function createAudioController() {
+  return {
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe('VerificationExperience', () => {
-  it('loads config, starts a challenge, submits a selection, and updates status', async () => {
+  it('shows the checking state before the human checkbox becomes available', async () => {
+    let resolveConfig:
+      | ((value: { json: () => Promise<ReturnType<typeof createConfigResponse>> }) => void)
+      | undefined;
+
+    const fetchMock = vi.fn().mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveConfig = resolve;
+        }),
+    );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<VerificationExperience audioController={createAudioController()} />);
+
+    expect(screen.getByText('正在验证...')).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar', { name: '验证进度' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '我是人类' })).not.toBeInTheDocument();
+
+    resolveConfig?.({
+      json: async () => createConfigResponse(),
+    });
+
+    expect(await screen.findByText('www.spark-app.store')).toBeInTheDocument();
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 3100));
+    });
+
+    const humanButton = await screen.findByRole('button', { name: '我是人类' });
+    expect(humanButton).toHaveClass('mx-auto');
+  });
+
+  it('shows the pseudo-security shell, starts a challenge, submits a selection, and updates status', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
         json: async () => createConfigResponse(),
@@ -53,16 +94,23 @@ describe('VerificationExperience', () => {
 
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<VerificationExperience />);
+    render(<VerificationExperience audioController={createAudioController()} preCheckDelayMs={0} />);
 
     expect(await screen.findByText('www.spark-app.store')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '正在进行安全验证' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        '本网站需要先验证您的连接安全性。完成验证前，此页面会暂时显示。请不要关闭或刷新浏览器。',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar', { name: '验证进度' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '我是人类' }));
+    fireEvent.click(await screen.findByRole('button', { name: '我是人类' }));
 
     expect(await screen.findByText('第 1 / 10 轮')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Round 1 candidate 2' }));
-    fireEvent.click(screen.getByRole('button', { name: '提交' }));
+    fireEvent.click(screen.getByRole('button', { name: '验证' }));
 
     await waitFor(() => {
       expect(screen.getByText('已答错 1 题')).toBeInTheDocument();
@@ -71,6 +119,46 @@ describe('VerificationExperience', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('starts audio with the default controller when verification begins', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        json: async () => createConfigResponse(),
+      })
+      .mockResolvedValueOnce({
+        json: async () => ({
+          ...createConfigResponse(),
+          sessionId: 'session-1',
+          currentRoundIndex: 1,
+          round: createRound('round-1', 'Round 1'),
+        }),
+      });
+
+    const audioElement = {
+      src: '',
+      currentTime: 0,
+      loop: false,
+      volume: 1,
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+    };
+
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('Audio', vi.fn(() => audioElement));
+
+    render(<VerificationExperience preCheckDelayMs={0} />);
+
+    expect(await screen.findByText('www.spark-app.store')).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole('button', { name: '我是人类' }));
+
+    await waitFor(() => {
+      expect(audioElement.play).toHaveBeenCalledTimes(1);
+    });
+
+    expect(audioElement.loop).toBe(true);
+    expect(audioElement.src).toBe('/1.mp3');
   });
 
   it('replaces the active challenge grid after a failed submission', async () => {
@@ -97,15 +185,15 @@ describe('VerificationExperience', () => {
 
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<VerificationExperience />);
+    render(<VerificationExperience audioController={createAudioController()} preCheckDelayMs={0} />);
 
     expect(await screen.findByText('www.spark-app.store')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '我是人类' }));
+    fireEvent.click(await screen.findByRole('button', { name: '我是人类' }));
     expect(await screen.findByText('第 1 / 10 轮')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Round 1 candidate 2' }));
-    fireEvent.click(screen.getByRole('button', { name: '提交' }));
+    fireEvent.click(screen.getByRole('button', { name: '验证' }));
 
     expect(await screen.findByRole('heading', { name: '你不是人类！' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '重新验证' })).toBeInTheDocument();
@@ -136,30 +224,28 @@ describe('VerificationExperience', () => {
       });
 
     const redirect = vi.fn();
-    const audioController = {
-      start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn().mockResolvedValue(undefined),
-    };
+    const audioController = createAudioController();
 
     vi.stubGlobal('fetch', fetchMock);
 
     render(
-      <VerificationExperience
-        audioController={audioController}
-        onRedirect={redirect}
-        redirectDelayMs={10}
-      />,
+        <VerificationExperience
+          audioController={audioController}
+          onRedirect={redirect}
+          preCheckDelayMs={0}
+          redirectDelayMs={10}
+        />,
     );
 
     expect(audioController.start).not.toHaveBeenCalled();
 
     expect(await screen.findByText('www.spark-app.store')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '我是人类' }));
+    fireEvent.click(await screen.findByRole('button', { name: '我是人类' }));
     expect(audioController.start).toHaveBeenCalledWith('/1.mp3');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Round 1 candidate 1' }));
-    fireEvent.click(screen.getByRole('button', { name: '提交' }));
+    fireEvent.click(screen.getByRole('button', { name: '验证' }));
 
     expect(await screen.findByText('验证通过')).toBeInTheDocument();
     expect(audioController.stop).toHaveBeenCalledTimes(1);
@@ -187,18 +273,20 @@ describe('VerificationExperience', () => {
 
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<VerificationExperience />);
+    render(<VerificationExperience audioController={createAudioController()} preCheckDelayMs={0} />);
+
+    expect(await screen.findByText('www.spark-app.store')).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole('button', { name: '我是人类' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Round 1 candidate 4' }));
-    fireEvent.click(screen.getByRole('button', { name: '提交' }));
+    fireEvent.click(screen.getByRole('button', { name: '验证' }));
 
     expect(await screen.findByText('提交超时，请重试')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Round 1 candidate 4' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    expect(screen.getByRole('button', { name: '提交' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: '验证' })).toBeEnabled();
   });
 
   it('returns to the shell when the session expires', async () => {
@@ -221,18 +309,17 @@ describe('VerificationExperience', () => {
         }),
       });
 
-    const audioController = {
-      start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn().mockResolvedValue(undefined),
-    };
+    const audioController = createAudioController();
 
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<VerificationExperience audioController={audioController} />);
+    render(<VerificationExperience audioController={audioController} preCheckDelayMs={0} />);
+
+    expect(await screen.findByText('www.spark-app.store')).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole('button', { name: '我是人类' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Round 1 candidate 2' }));
-    fireEvent.click(screen.getByRole('button', { name: '提交' }));
+    fireEvent.click(screen.getByRole('button', { name: '验证' }));
 
     expect(await screen.findByText('验证已过期，请重新开始')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '我是人类' })).toBeInTheDocument();

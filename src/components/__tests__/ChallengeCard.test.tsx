@@ -17,14 +17,14 @@ describe('ChallengeCard', () => {
           alt: `Candidate ${index + 1}`,
         }))}
         selectedOptionId={null}
-        submitLabel="提交"
+        submitLabel="验证"
         isSubmitting={false}
         onSelectionChange={onSelectionChange}
         onSubmit={onSubmit}
       />,
     );
 
-    const submitButton = screen.getByRole('button', { name: '提交' });
+    const submitButton = screen.getByRole('button', { name: '验证' });
     expect(submitButton).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Candidate 3' }));
@@ -46,7 +46,7 @@ describe('ChallengeCard', () => {
           alt: `Candidate ${index + 1}`,
         }))}
         selectedOptionId={null}
-        submitLabel="提交"
+        submitLabel="验证"
         isSubmitting={false}
         onSelectionChange={onSelectionChange}
         onSubmit={onSubmit}
@@ -57,15 +57,15 @@ describe('ChallengeCard', () => {
     fireEvent.error(brokenImage);
     fireEvent.click(screen.getByRole('button', { name: 'Candidate 3' }));
 
-    expect(screen.getByText('图片加载失败')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '提交' })).toBeDisabled();
+    expect(screen.getByText('图像加载失败，请重新载入后再提交。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '验证' })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: '重新载入' }));
 
-    expect(screen.queryByText('图片加载失败')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '提交' })).toBeEnabled();
+    expect(screen.queryByText('图像加载失败，请重新载入后再提交。')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '验证' })).toBeEnabled();
 
-    fireEvent.click(screen.getByRole('button', { name: '提交' }));
+    fireEvent.click(screen.getByRole('button', { name: '验证' }));
 
     expect(onSubmit).toHaveBeenCalledWith('option-3');
   });

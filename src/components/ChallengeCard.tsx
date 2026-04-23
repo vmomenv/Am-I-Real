@@ -45,9 +45,13 @@ export function ChallengeCard({
   }
 
   return (
-    <section className="w-full rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">
-      <h2 className="text-xl font-semibold text-white">{prompt}</h2>
-      <div className="mt-6 grid grid-cols-3 gap-3">
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <header className="bg-blue-600 px-4 py-3 text-white">
+        <h2 className="text-sm font-semibold">{prompt}</h2>
+        <p className="mt-1 text-xs text-blue-100">请从下方 9 张图像中选出真实拍摄的图片</p>
+      </header>
+
+      <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 sm:gap-3">
         {options.map((option) => {
           const isSelected = currentSelection === option.id;
           const hasFailed = failedImageIds.includes(option.id);
@@ -58,15 +62,15 @@ export function ChallengeCard({
               aria-pressed={isSelected}
               className={`overflow-hidden rounded-2xl border transition ${
                 isSelected
-                  ? 'border-cyan-300 shadow-lg shadow-cyan-950/40'
-                  : 'border-white/10 hover:border-white/30'
+                  ? 'border-blue-600 ring-2 ring-blue-200'
+                  : 'border-slate-200 hover:border-slate-400'
               }`}
               key={option.id}
               onClick={() => handleSelect(option.id)}
               type="button"
             >
               {hasFailed ? (
-                <div className="flex aspect-square items-center justify-center bg-slate-800 px-4 text-center text-sm text-slate-300">
+                <div className="flex aspect-square items-center justify-center bg-slate-200 px-4 text-center text-sm text-slate-500">
                   图片加载失败
                 </div>
               ) : (
@@ -81,26 +85,32 @@ export function ChallengeCard({
           );
         })}
       </div>
-      {hasImageErrors ? (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          <span>图片加载失败，请重新载入后再提交。</span>
+
+      <footer className="space-y-3 border-t border-slate-200 bg-white px-4 py-3">
+        {hasImageErrors ? (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <span>图像加载失败，请重新载入后再提交。</span>
+            <button
+              className="rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-700"
+              onClick={handleReload}
+              type="button"
+            >
+              重新载入
+            </button>
+          </div>
+        ) : null}
+
+        <div className="flex items-center justify-end gap-3">
           <button
-            className="rounded-full border border-amber-300/40 px-3 py-1 text-xs font-medium text-amber-50"
-            onClick={handleReload}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+            disabled={!currentSelection || hasImageErrors || isSubmitting}
+            onClick={() => currentSelection && onSubmit(currentSelection)}
             type="button"
           >
-            重新载入
+            {submitLabel}
           </button>
         </div>
-      ) : null}
-      <button
-        className="mt-6 inline-flex rounded-full bg-cyan-400 px-6 py-3 text-sm font-medium text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-        disabled={!currentSelection || hasImageErrors || isSubmitting}
-        onClick={() => currentSelection && onSubmit(currentSelection)}
-        type="button"
-      >
-        {submitLabel}
-      </button>
+      </footer>
     </section>
   );
 }

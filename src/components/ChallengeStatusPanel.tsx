@@ -14,11 +14,20 @@ export function ChallengeStatusPanel({
   requiredPassCount,
 }: ChallengeStatusPanelProps) {
   return (
-    <aside className="rounded-3xl border border-white/10 bg-slate-950/50 p-6 text-sm text-slate-200">
-      <p className="text-lg font-semibold text-white">第 {currentRoundIndex} / {totalRounds} 轮</p>
-      <p className="mt-4">已答错 {mistakeCount} 题</p>
-      <p className="mt-2">剩余 {remainingMistakesBeforeFailure} 次机会</p>
-      <p className="mt-6 text-slate-300">规则：共 {totalRounds} 轮，答对 {requiredPassCount} 轮即可通过。</p>
+    <aside className="space-y-3">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Challenge Status</p>
+        <p className="mt-3 text-lg font-bold text-slate-950">第 {currentRoundIndex} / {totalRounds} 轮</p>
+        <p className="mt-2 text-2xl font-bold text-slate-950">已答错 {mistakeCount} 题</p>
+        <p className="mt-1 text-sm text-slate-600">剩余 {remainingMistakesBeforeFailure} 次机会</p>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Verification Rules</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          共 {totalRounds} 轮。答对 {requiredPassCount} 轮及以上显示“验证通过”；若错误次数耗尽则显示“你不是人类！”。
+        </p>
+      </section>
     </aside>
   );
 }

@@ -1,8 +1,6 @@
 interface VerificationShellProps {
   brandName: string;
   siteName: string;
-  progressValue: number;
-  progressMax: number;
   buttonLabel: string;
   buttonDisabled?: boolean;
   errorMessage?: string | null;
@@ -12,49 +10,73 @@ interface VerificationShellProps {
 export function VerificationShell({
   brandName,
   siteName,
-  progressValue,
-  progressMax,
   buttonLabel,
   buttonDisabled = false,
   errorMessage,
   onAction,
 }: VerificationShellProps) {
-  const progressPercent = progressMax > 0 ? (progressValue / progressMax) * 100 : 0;
-
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-20">
-      <section className="w-full max-w-3xl rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-cyan-950/30 backdrop-blur">
-        <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">{brandName}</p>
-        <h1 className="mt-4 text-4xl font-semibold text-white">{siteName}</h1>
-        <p className="mt-4 text-base leading-7 text-slate-300">请完成 Groundflare 人机验证。</p>
-        <div className="mt-8">
-          <div className="mb-2 flex items-center justify-between text-sm text-slate-300">
-            <span>验证进度</span>
-            <span>
-              {progressValue} / {progressMax}
-            </span>
+      <section className="w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{brandName}</p>
+            <p className="mt-1 text-xs text-slate-500">Security verification service</p>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              aria-hidden="true"
-              className="h-full rounded-full bg-cyan-400 transition-[width]"
-              style={{ width: `${Math.max(0, Math.min(progressPercent, 100))}%` }}
-            />
+          <p className="text-xs text-slate-400">Ray ID: gf-demo</p>
+        </header>
+
+        <div className="space-y-8 px-6 py-8">
+          <div>
+            <p className="text-4xl font-bold tracking-tight text-slate-950">{siteName}</p>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">正在进行安全验证</h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">
+              本网站需要先验证您的连接安全性。完成验证前，此页面会暂时显示。请不要关闭或刷新浏览器。
+            </p>
           </div>
+
+          {buttonDisabled ? (
+            <div className="mx-auto flex w-full max-w-md items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <span className="flex items-center gap-3">
+                <span className="grid h-6 w-6 grid-cols-2 gap-1">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500 [animation-delay:0ms]" />
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500 [animation-delay:120ms]" />
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500 [animation-delay:240ms]" />
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500 [animation-delay:360ms]" />
+                </span>
+                <span className="text-base font-medium text-slate-900">正在验证...</span>
+              </span>
+              <span className="text-right text-[11px] leading-4 text-slate-400">
+                Privacy
+                <br />
+                Terms
+              </span>
+            </div>
+          ) : (
+            <button
+              aria-label={buttonLabel}
+              className="mx-auto flex w-full max-w-md items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition-colors duration-200 hover:border-slate-300"
+              onClick={onAction}
+              type="button"
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded border-2 border-slate-300 bg-white text-sm text-slate-500" />
+                <span className="text-base font-medium text-slate-900">{buttonLabel}</span>
+              </span>
+              <span className="text-right text-[11px] leading-4 text-slate-400">
+                Privacy
+                <br />
+                Terms
+              </span>
+            </button>
+          )}
+
+          {errorMessage ? (
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {errorMessage}
+            </p>
+          ) : null}
         </div>
-        {errorMessage ? (
-          <p className="mt-6 rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-            {errorMessage}
-          </p>
-        ) : null}
-        <button
-          className="mt-8 inline-flex rounded-full bg-cyan-400 px-6 py-3 text-sm font-medium text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-          disabled={buttonDisabled}
-          onClick={onAction}
-          type="button"
-        >
-          {buttonLabel}
-        </button>
       </section>
     </main>
   );

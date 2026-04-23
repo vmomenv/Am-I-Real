@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   fetchPublicConfig,
@@ -10,7 +10,10 @@ import type {
   PublicChallengeConfig,
   PublicRound,
 } from '@/src/lib/challenge-types';
+import { ChallengeAudioController } from '@/src/lib/audio-controller';
 import type { AudioControllerPort } from '@/src/lib/audio-controller';
+
+const PRECHECK_DELAY_MS = 3000;
 
 interface ChallengeMetrics {
   currentRoundIndex: number;
@@ -28,9 +31,10 @@ const EMPTY_METRICS: ChallengeMetrics = {
 
 interface UseChallengeFlowOptions {
   audioController?: AudioControllerPort;
+  preCheckDelayMs?: number;
 }
 
-export function useChallengeFlow({ audioController }: UseChallengeFlowOptions = {}) {
+export function useChallengeFlow({ audioController, preCheckDelayMs = PRECHECK_DELAY_MS }: UseChallengeFlowOptions = {}) {
   const [viewState, setViewState] = useState<ChallengeViewState>('loading');
   const [config, setConfig] = useState<PublicChallengeConfig | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -39,6 +43,8 @@ export function useChallengeFlow({ audioController }: UseChallengeFlowOptions = 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<ChallengeMetrics>(EMPTY_METRICS);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  const internalAudioControllerRef = useRef<AudioControllerPort | null>(audioController ?? null);
+  const readyTimerRef = useRef<number | null>(null);
 
   function getRemainingMistakes(activeConfig: PublicChallengeConfig | null) {
     if (!activeConfig) {
@@ -60,12 +66,51 @@ export function useChallengeFlow({ audioController }: UseChallengeFlowOptions = 
     setViewState(nextState);
   }
 
+  function getAudioController() {
+    if (audioController) {
+      internalAudioControllerRef.current = audioController;
+      return audioController;
+    }
+
+    if (internalAudioControllerRef.current) {
+      return internalAudioControllerRef.current;
+    }
+
+    if (typeof Audio === 'undefined') {
+      return null;
+    }
+
+    internalAudioControllerRef.current = new ChallengeAudioController();
+    return internalAudioControllerRef.current;
+  }
+
   function stopAudio() {
-    if (!audioController) {
+    const activeAudioController = getAudioController();
+
+    if (!activeAudioController) {
       return;
     }
 
-    void audioController.stop().catch(() => undefined);
+    void activeAudioController.stop().catch(() => undefined);
+  }
+
+  function clearReadyTimer() {
+    if (readyTimerRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(readyTimerRef.current);
+    readyTimerRef.current = null;
+  }
+
+  function queueReadyToVerify() {
+    clearReadyTimer();
+    setViewState('loading');
+
+    readyTimerRef.current = window.setTimeout(() => {
+      setViewState('readyToVerify');
+      readyTimerRef.current = null;
+    }, preCheckDelayMs);
   }
 
   useEffect(() => {
@@ -85,7 +130,7 @@ export function useChallengeFlow({ audioController }: UseChallengeFlowOptions = 
           remainingMistakesBeforeFailure:
             publicConfig.totalRounds - publicConfig.requiredPassCount + 1,
         }));
-        setViewState('readyToVerify');
+        queueReadyToVerify();
       } catch {
         if (!isActive) {
           return;
@@ -100,6 +145,7 @@ export function useChallengeFlow({ audioController }: UseChallengeFlowOptions = 
 
     return () => {
       isActive = false;
+      clearReadyTimer();
     };
   }, []);
 
@@ -108,7 +154,11 @@ export function useChallengeFlow({ audioController }: UseChallengeFlowOptions = 
     setRedirectUrl(null);
 
     if (config?.audioUrl) {
-      void audioController?.start(config.audioUrl).catch(() => undefined);
+      const activeAudioController = getAudioController();
+
+      if (activeAudioController) {
+        void activeAudioController.start(config.audioUrl).catch(() => undefined);
+      }
     }
 
     try {
