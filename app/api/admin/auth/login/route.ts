@@ -21,6 +21,15 @@ function getInvalidPayloadResponse() {
   );
 }
 
+function hasValidCredentialTypes(
+  payload: { username?: unknown; password?: unknown },
+): payload is { username?: string; password?: string } {
+  const usernameIsValid = payload.username === undefined || typeof payload.username === 'string';
+  const passwordIsValid = payload.password === undefined || typeof payload.password === 'string';
+
+  return usernameIsValid && passwordIsValid;
+}
+
 export async function POST(request: Request) {
   let parsedPayload: unknown;
 
@@ -35,9 +44,14 @@ export async function POST(request: Request) {
   }
 
   const payload = parsedPayload as {
-    username?: string;
-    password?: string;
+    username?: unknown;
+    password?: unknown;
   };
+
+  if (!hasValidCredentialTypes(payload)) {
+    return getInvalidPayloadResponse();
+  }
+
   const throttleIdentity = {
     username: payload.username?.trim() ?? '',
   };
