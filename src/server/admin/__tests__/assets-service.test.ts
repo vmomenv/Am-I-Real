@@ -355,4 +355,41 @@ describe('assets-service', () => {
 
     db.close();
   });
+
+  it('renames an asset and trims the incoming filename', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    const { renameAsset, uploadAsset } = await import('@/src/server/admin/assets-service');
+
+    const uploadedAsset = await uploadAsset({
+      db,
+      uploadsDir: join(tempDirectory, 'uploads'),
+      kind: 'real',
+      file: new File(['real-bytes'], 'portrait.jpg', { type: 'image/jpeg' }),
+    });
+
+    expect(() =>
+      renameAsset({
+        db,
+        id: uploadedAsset.id,
+        originalFilename: '   hero-shot.png   ',
+      }),
+    ).not.toThrow();
+
+    expect(
+      renameAsset({
+        db,
+        id: uploadedAsset.id,
+        originalFilename: 'detail-shot.png',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        id: uploadedAsset.id,
+        originalFilename: 'detail-shot.png',
+      }),
+    );
+
+    db.close();
+  });
 });

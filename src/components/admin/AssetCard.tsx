@@ -1,14 +1,35 @@
 import type { Asset } from '@/src/server/admin/assets-service';
 
+import { useId, useState } from 'react';
+
 type AssetCardProps = {
   asset: Asset;
+  onDelete?: (asset: Asset) => void;
+  onRename?: (asset: Asset, nextName: string) => void;
+  onToggle?: (asset: Asset) => void;
 };
 
 function formatTimestamp(value: string) {
   return value.replace('T', ' ').slice(0, 16);
 }
 
-export function AssetCard({ asset }: AssetCardProps) {
+export function AssetCard({ asset, onDelete, onRename, onToggle }: AssetCardProps) {
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [nextName, setNextName] = useState(asset.originalFilename);
+  const renameFieldId = useId();
+
+  function handleRenameSubmit() {
+    const trimmedName = nextName.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    onRename?.(asset, trimmedName);
+    setNextName(trimmedName);
+    setIsRenaming(false);
+  }
+
   return (
     <article className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-slate-100 shadow-[0_0_0_1px_rgba(15,23,42,0.3)]">
       <div className="flex items-start justify-between gap-4">
@@ -42,14 +63,49 @@ export function AssetCard({ asset }: AssetCardProps) {
         </div>
       </dl>
 
+      {isRenaming ? (
+        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-xs text-slate-300">
+          <label className="block text-[11px] uppercase tracking-[0.2em] text-slate-500" htmlFor={renameFieldId}>
+            新的素材名称
+          </label>
+          <div className="mt-2 flex gap-2">
+            <input
+              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
+              id={renameFieldId}
+              onChange={(event) => setNextName(event.target.value)}
+              value={nextName}
+            />
+            <button
+              className="cursor-pointer rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 font-medium text-emerald-200 transition hover:border-emerald-400 hover:text-white"
+              onClick={handleRenameSubmit}
+              type="button"
+            >
+              保存名称
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
-        <button className="cursor-pointer rounded-lg border border-slate-700 px-3 py-2 text-slate-200 transition hover:border-slate-500 hover:text-white" type="button">
+        <button
+          className="cursor-pointer rounded-lg border border-slate-700 px-3 py-2 text-slate-200 transition hover:border-slate-500 hover:text-white"
+          onClick={() => setIsRenaming((value) => !value)}
+          type="button"
+        >
           重命名
         </button>
-        <button className="cursor-pointer rounded-lg border border-slate-700 px-3 py-2 text-slate-200 transition hover:border-slate-500 hover:text-white" type="button">
+        <button
+          className="cursor-pointer rounded-lg border border-slate-700 px-3 py-2 text-slate-200 transition hover:border-slate-500 hover:text-white"
+          onClick={() => onToggle?.(asset)}
+          type="button"
+        >
           {asset.isActive ? '停用' : '启用'}
         </button>
-        <button className="cursor-pointer rounded-lg border border-rose-900/70 bg-rose-950/40 px-3 py-2 text-rose-200 transition hover:border-rose-700 hover:text-white" type="button">
+        <button
+          className="cursor-pointer rounded-lg border border-rose-900/70 bg-rose-950/40 px-3 py-2 text-rose-200 transition hover:border-rose-700 hover:text-white"
+          onClick={() => onDelete?.(asset)}
+          type="button"
+        >
           删除
         </button>
       </div>

@@ -69,6 +69,12 @@ type UpdateAssetInput = {
   isActive: boolean;
 };
 
+type RenameAssetInput = {
+  db?: Database.Database;
+  id: string;
+  originalFilename: string;
+};
+
 type RemoveAssetInput = {
   db?: Database.Database;
   id: string;
@@ -281,6 +287,29 @@ export function updateAsset(input: UpdateAssetInput) {
   ).run({
     id: input.id,
     isActive: input.isActive ? 1 : 0,
+  });
+
+  return mapAsset(requireAsset(db, input.id));
+}
+
+export function renameAsset(input: RenameAssetInput) {
+  const db = getReadyDatabase(input.db);
+  const nextFilename = input.originalFilename.trim();
+
+  if (!nextFilename) {
+    throw new AssetServiceError('INVALID_REQUEST', 'Asset filename is required.', 400);
+  }
+
+  requireAsset(db, input.id);
+
+  db.prepare(
+    `UPDATE image_assets
+     SET originalFilename = @originalFilename,
+         updatedAt = CURRENT_TIMESTAMP
+     WHERE id = @id`,
+  ).run({
+    id: input.id,
+    originalFilename: nextFilename,
   });
 
   return mapAsset(requireAsset(db, input.id));

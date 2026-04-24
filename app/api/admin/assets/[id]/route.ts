@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import {
   AssetServiceError,
+  renameAsset,
   removeAsset,
   updateAsset,
 } from '@/src/server/admin/assets-service';
@@ -39,17 +40,28 @@ export async function PATCH(
     return getInvalidRequestResponse();
   }
 
-  const { isActive } = payload as { isActive?: unknown };
-
-  if (typeof isActive !== 'boolean') {
-    return getInvalidRequestResponse();
-  }
-
   try {
-    const asset = updateAsset({
-      id: params.id,
-      isActive,
-    });
+    const { isActive, originalFilename } = payload as {
+      isActive?: unknown;
+      originalFilename?: unknown;
+    };
+
+    const asset =
+      typeof originalFilename === 'string'
+        ? renameAsset({
+            id: params.id,
+            originalFilename,
+          })
+        : typeof isActive === 'boolean'
+          ? updateAsset({
+              id: params.id,
+              isActive,
+            })
+          : null;
+
+    if (!asset) {
+      return getInvalidRequestResponse();
+    }
 
     return NextResponse.json({ asset });
   } catch (error) {
