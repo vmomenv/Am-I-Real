@@ -159,6 +159,28 @@ describe('assets-service', () => {
     db.close();
   });
 
+  it('persists stable public upload paths when the physical uploads directory is customized', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    const { uploadAsset } = await import('@/src/server/admin/assets-service');
+    const customUploadsDirectory = join(tempDirectory, 'groundflare-storage');
+
+    const uploadedAsset = await uploadAsset({
+      db,
+      uploadsDir: customUploadsDirectory,
+      kind: 'audio',
+      file: new File(['audio-bytes'], 'theme.mp3', { type: 'audio/mpeg' }),
+    });
+
+    expect(uploadedAsset.filePath).toMatch(/^uploads\/audio\/.+\.mp3$/);
+    await expect(readFile(join(customUploadsDirectory, 'audio', uploadedAsset.filePath.split('/').at(-1)!), 'utf8')).resolves.toBe(
+      'audio-bytes',
+    );
+
+    db.close();
+  });
+
   it('blocks removal when an asset is referenced by site settings', async () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);

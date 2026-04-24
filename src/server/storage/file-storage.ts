@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { basename, extname, join } from 'node:path';
+import { extname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+
+const PUBLIC_UPLOADS_PREFIX = 'uploads';
 
 export type StoredFile = {
   filePath: string;
@@ -16,7 +18,7 @@ type StoreUploadedFileInput = {
 export async function storeUploadedFile(input: StoreUploadedFileInput): Promise<StoredFile> {
   const extension = extname(input.file.name).toLowerCase();
   const storageFileName = `${randomUUID()}${extension}`;
-  const relativePath = join(basename(input.uploadsDir), input.kind, storageFileName);
+  const relativePath = join(PUBLIC_UPLOADS_PREFIX, input.kind, storageFileName);
   const targetPath = join(input.uploadsDir, input.kind, storageFileName);
   const fileBuffer = Buffer.from(await input.file.arrayBuffer());
 
