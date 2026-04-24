@@ -16,10 +16,20 @@ function getThrottleKey(input: AdminLoginThrottleInput) {
   return input.username.trim().toLowerCase();
 }
 
+function pruneStaleAdminLoginThrottleEntries(now: number) {
+  for (const [key, entry] of loginThrottleEntries.entries()) {
+    if (entry.blockedUntil && entry.blockedUntil <= now) {
+      loginThrottleEntries.delete(key);
+    }
+  }
+}
+
 export function getAdminLoginThrottleStatus(
   input: AdminLoginThrottleInput,
   now = Date.now(),
 ) {
+  pruneStaleAdminLoginThrottleEntries(now);
+
   const key = getThrottleKey(input);
   const entry = loginThrottleEntries.get(key);
 
@@ -34,10 +44,6 @@ export function getAdminLoginThrottleStatus(
     };
   }
 
-  if (entry.blockedUntil && entry.blockedUntil <= now) {
-    loginThrottleEntries.delete(key);
-  }
-
   return { isBlocked: false, retryAfterSeconds: 0 };
 }
 
@@ -45,6 +51,8 @@ export function recordFailedAdminLogin(
   input: AdminLoginThrottleInput,
   now = Date.now(),
 ) {
+  pruneStaleAdminLoginThrottleEntries(now);
+
   const key = getThrottleKey(input);
   const currentEntry = loginThrottleEntries.get(key);
   const nextFailureCount = (currentEntry?.failureCount ?? 0) + 1;
@@ -59,4 +67,8 @@ export function recordFailedAdminLogin(
 
 export function clearAdminLoginThrottle(input: AdminLoginThrottleInput) {
   loginThrottleEntries.delete(getThrottleKey(input));
+}
+
+export function getAdminLoginThrottleEntryCount() {
+  return loginThrottleEntries.size;
 }
