@@ -1,5 +1,5 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { extname, join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const PUBLIC_UPLOADS_PREFIX = 'uploads';
@@ -29,4 +29,12 @@ export async function storeUploadedFile(input: StoreUploadedFileInput): Promise<
     filePath: relativePath,
     fileSize: fileBuffer.byteLength,
   };
+}
+
+export async function removeStoredFile(input: { uploadsDir: string; filePath: string }) {
+  const relativeFilePath = input.filePath
+    .replace(/^uploads[\\/]/, '')
+    .replace(/[\\/]/g, sep);
+
+  await rm(join(input.uploadsDir, relativeFilePath), { force: true });
 }

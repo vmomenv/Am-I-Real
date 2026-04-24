@@ -5,7 +5,7 @@ import type Database from 'better-sqlite3';
 
 import { bootstrapDatabase } from '@/src/server/db/bootstrap';
 import { getDatabase } from '@/src/server/db/client';
-import { storeUploadedFile } from '@/src/server/storage/file-storage';
+import { removeStoredFile, storeUploadedFile } from '@/src/server/storage/file-storage';
 
 export type AssetKind = 'ai' | 'real' | 'audio';
 
@@ -21,15 +21,6 @@ type AssetRow = {
   isActive: number;
   createdAt: string;
   updatedAt: string;
-};
-
-type SiteSettingsRow = {
-  totalRounds: number;
-};
-
-type PoolCountsRow = {
-  realCount: number;
-  aiCount: number;
 };
 
 export type Asset = Omit<AssetRow, 'isActive'> & {
@@ -78,6 +69,7 @@ type RenameAssetInput = {
 type RemoveAssetInput = {
   db?: Database.Database;
   id: string;
+  uploadsDir?: string;
 };
 
 const ALLOWED_MIME_TYPES: Record<AssetKind, Set<string>> = {
@@ -135,59 +127,6 @@ function ensureAssetIsNotReferencedBySettings(db: Database.Database, assetId: st
 
   if (referencedSettings) {
     throw new AssetServiceError('ASSET_IN_USE', 'Asset is still referenced by site settings.', 409);
-  }
-}
-
-function getCurrentSiteSettings(db: Database.Database) {
-  return db.prepare('SELECT totalRounds FROM site_settings LIMIT 1').get() as SiteSettingsRow | undefined;
-}
-
-function getActivePoolCounts(db: Database.Database, excludedAssetId?: string) {
-  const exclusionClause = excludedAssetId ? 'AND id != @excludedAssetId' : '';
-
-  return db
-    .prepare(
-      `SELECT
-         SUM(CASE WHEN kind = 'real' AND isActive = 1 THEN 1 ELSE 0 END) AS realCount,
-         SUM(CASE WHEN kind = 'ai' AND isActive = 1 THEN 1 ELSE 0 END) AS aiCount
-       FROM image_assets
-       WHERE 1 = 1 ${exclusionClause}`,
-    )
-    .get(excludedAssetId ? { excludedAssetId } : {}) as PoolCountsRow;
-}
-
-function ensureAssetDoesNotBreakChallengePool(db: Database.Database, asset: AssetRow, nextIsActive: boolean) {
-  if (nextIsActive || (asset.kind !== 'real' && asset.kind !== 'ai')) {
-    return;
-  }
-
-  const settings = getCurrentSiteSettings(db);
-
-  if (!settings) {
-    return;
-  }
-
-  const currentPoolCounts = getActivePoolCounts(db);
-  const nextPoolCounts = getActivePoolCounts(db, asset.id);
-
-  if (
-    asset.kind === 'real' &&
-    currentPoolCounts.realCount >= settings.totalRounds &&
-    nextPoolCounts.realCount < settings.totalRounds
-  ) {
-    throw new AssetServiceError(
-      'ASSET_IN_USE',
-      'Asset is required to satisfy the active challenge pool.',
-      409,
-    );
-  }
-
-  if (asset.kind === 'ai' && currentPoolCounts.aiCount >= 8 && nextPoolCounts.aiCount < 8) {
-    throw new AssetServiceError(
-      'ASSET_IN_USE',
-      'Asset is required to satisfy the active challenge pool.',
-      409,
-    );
   }
 }
 
@@ -283,8 +222,6 @@ export function updateAsset(input: UpdateAssetInput) {
 
   const asset = requireAsset(db, input.id);
 
-  ensureAssetDoesNotBreakChallengePool(db, asset, input.isActive);
-
   if (asset.kind === 'audio' && !input.isActive) {
     ensureAssetIsNotReferencedBySettings(db, input.id);
   }
@@ -327,14 +264,18 @@ export function renameAsset(input: RenameAssetInput) {
 
 export async function removeAsset(input: RemoveAssetInput) {
   const db = getReadyDatabase(input.db);
+  const uploadsDir = getUploadsDirectory(input.uploadsDir);
 
-  requireAsset(db, input.id);
+  const asset = requireAsset(db, input.id);
 
   ensureAssetIsNotReferencedBySettings(db, input.id);
 
-  return updateAsset({
-    db,
-    id: input.id,
-    isActive: false,
+  db.prepare('DELETE FROM image_assets WHERE id = ?').run(input.id);
+
+  await removeStoredFile({
+    uploadsDir,
+    filePath: asset.filePath,
   });
+
+  return mapAsset(asset);
 }

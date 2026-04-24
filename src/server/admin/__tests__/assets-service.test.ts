@@ -205,6 +205,7 @@ describe('assets-service', () => {
       removeAsset({
         db,
         id: uploadedAudioAsset.id,
+        uploadsDir: join(tempDirectory, 'uploads'),
       }),
     ).rejects.toMatchObject({
       code: 'ASSET_IN_USE',
@@ -216,11 +217,12 @@ describe('assets-service', () => {
       removeAsset({
         db,
         id: uploadedAudioAsset.id,
+        uploadsDir: join(tempDirectory, 'uploads'),
       }),
     ).resolves.toEqual(
       expect.objectContaining({
         id: uploadedAudioAsset.id,
-        isActive: false,
+        kind: 'audio',
       }),
     );
 
@@ -228,14 +230,10 @@ describe('assets-service', () => {
       listAssets({
         db,
         kind: 'audio',
-        isActive: false,
       }),
-    ).toEqual([
-      expect.objectContaining({
-        id: uploadedAudioAsset.id,
-        isActive: false,
-      }),
-    ]);
+    ).toEqual([]);
+
+    await expect(access(join(tempDirectory, uploadedAudioAsset.filePath))).rejects.toThrow();
 
     db.close();
   });
@@ -288,7 +286,7 @@ describe('assets-service', () => {
     db.close();
   });
 
-  it('rejects deactivating or removing real/ai assets when that would violate the active challenge pool', async () => {
+  it('allows deactivating or removing real/ai assets even when that drops below the recommended pool size', async () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);
 
@@ -326,11 +324,7 @@ describe('assets-service', () => {
         id: realAssets[0].id,
         isActive: false,
       }),
-    ).toThrowError(
-      expect.objectContaining({
-        code: 'ASSET_IN_USE',
-      }),
-    );
+    ).not.toThrow();
 
     expect(() =>
       updateAsset({
@@ -338,20 +332,20 @@ describe('assets-service', () => {
         id: aiAssets[0].id,
         isActive: false,
       }),
-    ).toThrowError(
-      expect.objectContaining({
-        code: 'ASSET_IN_USE',
-      }),
-    );
+    ).not.toThrow();
 
     await expect(
       removeAsset({
         db,
         id: aiAssets[1].id,
+        uploadsDir: join(tempDirectory, 'uploads'),
       }),
-    ).rejects.toMatchObject({
-      code: 'ASSET_IN_USE',
-    });
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: aiAssets[1].id,
+        kind: 'ai',
+      }),
+    );
 
     db.close();
   });
@@ -388,13 +382,24 @@ describe('assets-service', () => {
       removeAsset({
         db,
         id: uploadedAiAsset.id,
+        uploadsDir: join(tempDirectory, 'uploads'),
       }),
     ).resolves.toEqual(
       expect.objectContaining({
         id: uploadedAiAsset.id,
-        isActive: false,
+        kind: 'ai',
       }),
     );
+
+    await expect(
+      removeAsset({
+        db,
+        id: uploadedAiAsset.id,
+        uploadsDir: join(tempDirectory, 'uploads'),
+      }),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
 
     db.close();
   });
