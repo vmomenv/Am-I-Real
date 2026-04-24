@@ -14,7 +14,8 @@ import type {
 import { ChallengeAudioController } from '@/src/lib/audio-controller';
 import type { AudioControllerPort } from '@/src/lib/audio-controller';
 
-const PRECHECK_DELAY_MS = 3000;
+const PRECHECK_DELAY_MS = 1000;
+const BEGIN_CHALLENGE_DELAY_MS = 1000;
 const INVALID_CHALLENGE_POOL_MESSAGE = '验证资源尚未配置完成，请先上传并配置后端挑战素材后再试';
 
 interface ChallengeMetrics {
@@ -33,10 +34,21 @@ const EMPTY_METRICS: ChallengeMetrics = {
 
 interface UseChallengeFlowOptions {
   audioController?: AudioControllerPort;
+  beginChallengeDelayMs?: number;
   preCheckDelayMs?: number;
 }
 
-export function useChallengeFlow({ audioController, preCheckDelayMs = PRECHECK_DELAY_MS }: UseChallengeFlowOptions = {}) {
+function wait(delayMs: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, delayMs);
+  });
+}
+
+export function useChallengeFlow({
+  audioController,
+  beginChallengeDelayMs = BEGIN_CHALLENGE_DELAY_MS,
+  preCheckDelayMs = PRECHECK_DELAY_MS,
+}: UseChallengeFlowOptions = {}) {
   const [viewState, setViewState] = useState<ChallengeViewState>('loading');
   const [config, setConfig] = useState<PublicChallengeConfig | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -154,6 +166,7 @@ export function useChallengeFlow({ audioController, preCheckDelayMs = PRECHECK_D
   async function beginChallenge() {
     setErrorMessage(null);
     setRedirectUrl(null);
+    setViewState('loading');
 
     if (config?.audioUrl) {
       const activeAudioController = getAudioController();
@@ -164,7 +177,7 @@ export function useChallengeFlow({ audioController, preCheckDelayMs = PRECHECK_D
     }
 
     try {
-      const response = await startChallenge();
+      const [response] = await Promise.all([startChallenge(), wait(beginChallengeDelayMs)]);
 
       setConfig({
         brandName: response.brandName,
@@ -190,10 +203,12 @@ export function useChallengeFlow({ audioController, preCheckDelayMs = PRECHECK_D
 
       if (error instanceof ApiClientError && error.code === 'INVALID_CHALLENGE_POOL') {
         setErrorMessage(INVALID_CHALLENGE_POOL_MESSAGE);
+        setViewState('readyToVerify');
         return;
       }
 
       setErrorMessage('启动验证失败，请稍后重试');
+      setViewState('readyToVerify');
     }
   }
 

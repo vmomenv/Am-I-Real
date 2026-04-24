@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 
 import { ChallengeCard } from '@/src/components/ChallengeCard';
-import { ChallengeStatusPanel } from '@/src/components/ChallengeStatusPanel';
 import { ResultCard } from '@/src/components/ResultCard';
 import { VerificationShell } from '@/src/components/VerificationShell';
 import { useChallengeFlow } from '@/src/hooks/useChallengeFlow';
@@ -20,6 +19,7 @@ const REDIRECT_DELAY_MS = 1500;
 
 interface VerificationExperienceProps {
   audioController?: AudioControllerPort;
+  beginChallengeDelayMs?: number;
   onRedirect?: (url: string) => void;
   redirectDelayMs?: number;
   preCheckDelayMs?: number;
@@ -27,6 +27,7 @@ interface VerificationExperienceProps {
 
 export function VerificationExperience({
   audioController,
+  beginChallengeDelayMs,
   onRedirect,
   redirectDelayMs = REDIRECT_DELAY_MS,
   preCheckDelayMs,
@@ -43,7 +44,7 @@ export function VerificationExperience({
     beginChallenge,
     submitSelection,
     restartChallenge,
-  } = useChallengeFlow({ audioController, preCheckDelayMs });
+  } = useChallengeFlow({ audioController, beginChallengeDelayMs, preCheckDelayMs });
 
   const activeConfig = config ?? FALLBACK_CONFIG;
 
@@ -102,28 +103,21 @@ export function VerificationExperience({
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]" data-testid="challenge-layout">
-      <div className="flex-1">
+      <div className="mx-auto max-w-4xl" data-testid="challenge-layout">
         <ChallengeCard
+          currentRoundIndex={metrics.currentRoundIndex}
           isSubmitting={viewState === 'submitting'}
+          mistakeCount={metrics.mistakeCount}
           onSelectionChange={setSelectedOptionId}
           onSubmit={submitSelection}
           options={round.options}
           prompt={round.prompt}
+          remainingMistakesBeforeFailure={metrics.remainingMistakesBeforeFailure}
           selectedOptionId={selectedOptionId}
           submitLabel={viewState === 'submitting' ? '验证中...' : '验证'}
-        />
-        {errorMessage ? <p className="mt-4 text-sm text-rose-700">{errorMessage}</p> : null}
-      </div>
-      <div className="w-full max-w-sm">
-        <ChallengeStatusPanel
-          currentRoundIndex={metrics.currentRoundIndex}
-          mistakeCount={metrics.mistakeCount}
-          remainingMistakesBeforeFailure={metrics.remainingMistakesBeforeFailure}
-          requiredPassCount={activeConfig.requiredPassCount}
           totalRounds={activeConfig.totalRounds}
         />
-      </div>
+        {errorMessage ? <p className="mt-4 text-sm text-rose-700">{errorMessage}</p> : null}
       </div>
     </main>
   );

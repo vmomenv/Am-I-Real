@@ -23,7 +23,7 @@ export function VerificationShell({
             <p className="text-sm font-semibold text-slate-900">{brandName}</p>
             <p className="mt-1 text-xs text-slate-500">Security verification service</p>
           </div>
-          <p className="text-xs text-slate-400">Ray ID: gf-demo</p>
+          <p className="text-xs text-slate-400">Ray ID: APM-114514</p>
         </header>
 
         <div className="space-y-8 px-6 py-8">

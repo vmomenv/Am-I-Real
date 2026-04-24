@@ -3,20 +3,28 @@ import { useEffect, useState } from 'react';
 import type { ChallengeOption } from '@/src/lib/challenge-types';
 
 interface ChallengeCardProps {
+  currentRoundIndex?: number;
+  mistakeCount?: number;
   prompt: string;
   options: ChallengeOption[];
+  remainingMistakesBeforeFailure?: number;
   selectedOptionId?: string | null;
   submitLabel: string;
+  totalRounds?: number;
   isSubmitting: boolean;
   onSelectionChange: (optionId: string) => void;
   onSubmit: (optionId: string) => void;
 }
 
 export function ChallengeCard({
+  currentRoundIndex,
+  mistakeCount,
   prompt,
   options,
+  remainingMistakesBeforeFailure,
   selectedOptionId = null,
   submitLabel,
+  totalRounds,
   isSubmitting,
   onSelectionChange,
   onSubmit,
@@ -108,7 +116,18 @@ export function ChallengeCard({
           </div>
         ) : null}
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-between gap-3">
+          {typeof currentRoundIndex === 'number' &&
+          typeof totalRounds === 'number' &&
+          typeof mistakeCount === 'number' &&
+          typeof remainingMistakesBeforeFailure === 'number' ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              <p className="font-medium text-slate-800">第 {currentRoundIndex}/{totalRounds} 轮</p>
+              <p className="mt-1">错 {mistakeCount} 次 | 余 {remainingMistakesBeforeFailure} 次</p>
+            </div>
+          ) : (
+            <div />
+          )}
           <button
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
             disabled={!currentSelection || hasImageErrors || isSubmitting}
