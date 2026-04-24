@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 
 import { AssetServiceError, listAssets } from '@/src/server/admin/assets-service';
+import { requireAdminSession } from '@/src/server/admin/route-auth';
 
 export function GET(request: Request) {
+  const unauthorizedResponse = requireAdminSession(request);
+
+  if (unauthorizedResponse) {
+    return unauthorizedResponse;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const kindParam = searchParams.get('kind');

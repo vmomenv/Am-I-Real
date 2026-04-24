@@ -5,6 +5,7 @@ import {
   removeAsset,
   updateAsset,
 } from '@/src/server/admin/assets-service';
+import { requireAdminSession } from '@/src/server/admin/route-auth';
 
 function getInvalidRequestResponse() {
   return NextResponse.json(
@@ -20,6 +21,12 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
 ) {
+  const unauthorizedResponse = requireAdminSession(request);
+
+  if (unauthorizedResponse) {
+    return unauthorizedResponse;
+  }
+
   let payload: unknown;
 
   try {
@@ -61,9 +68,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } },
 ) {
+  const unauthorizedResponse = requireAdminSession(request);
+
+  if (unauthorizedResponse) {
+    return unauthorizedResponse;
+  }
+
   try {
     const asset = await removeAsset({ id: params.id });
 

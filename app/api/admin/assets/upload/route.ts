@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { AssetServiceError, uploadAsset } from '@/src/server/admin/assets-service';
+import { requireAdminSession } from '@/src/server/admin/route-auth';
 
 function getInvalidRequestResponse() {
   return NextResponse.json(
@@ -13,6 +14,12 @@ function getInvalidRequestResponse() {
 }
 
 export async function POST(request: Request) {
+  const unauthorizedResponse = requireAdminSession(request);
+
+  if (unauthorizedResponse) {
+    return unauthorizedResponse;
+  }
+
   let formData: FormData;
 
   try {
