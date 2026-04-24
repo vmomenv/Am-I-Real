@@ -9,7 +9,7 @@ export function POST(request: Request) {
   const acceptsJson = request.headers.get('accept')?.includes('application/json');
   const response = acceptsJson
     ? NextResponse.json({ authenticated: false })
-    : NextResponse.redirect(new URL('/admin/login', request.url));
+    : NextResponse.redirect(new URL('/admin/login', request.url), { status: 303 });
 
   response.cookies.set({
     ...getAdminSessionCookieOptions(),

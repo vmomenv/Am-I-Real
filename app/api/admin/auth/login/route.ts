@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     return getInvalidPayloadResponse();
   }
 
-  if (!parsedPayload || typeof parsedPayload !== 'object') {
+  if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
     return getInvalidPayloadResponse();
   }
 

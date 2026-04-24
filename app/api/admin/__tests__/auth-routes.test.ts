@@ -36,6 +36,22 @@ describe('admin auth routes', () => {
       message: 'Invalid login payload.',
     });
 
+    const arrayPayloadResponse = await login(
+      new Request('http://localhost/api/admin/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: '[]',
+      }),
+    );
+
+    expect(arrayPayloadResponse.status).toBe(400);
+    await expect(arrayPayloadResponse.json()).resolves.toEqual({
+      code: 'INVALID_REQUEST',
+      message: 'Invalid login payload.',
+    });
+
     const wrongTypedCredentialsResponse = await login(
       new Request('http://localhost/api/admin/auth/login', {
         method: 'POST',
