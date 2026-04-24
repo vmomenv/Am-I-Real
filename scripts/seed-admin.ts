@@ -1,20 +1,17 @@
 import { bootstrapDatabase } from '@/src/server/db/bootstrap';
 import { getDatabase } from '@/src/server/db/client';
-import { hashAdminPassword, upsertAdminUser } from '@/src/server/admin/auth-service';
+import { seedAdminUser } from '@/src/server/admin/auth-service';
 
-const username = process.env.ADMIN_USERNAME ?? 'admin';
-const password = process.env.ADMIN_PASSWORD;
+const username = process.argv[2];
+const password = process.argv[3];
 
-if (!password) {
-  throw new Error('ADMIN_PASSWORD must be set before seeding the admin user.');
+if (!username || !password) {
+  throw new Error('Usage: npm exec tsx scripts/seed-admin.ts <username> <password>');
 }
 
 const db = getDatabase();
 
 bootstrapDatabase(db);
-upsertAdminUser(db, {
-  username,
-  passwordHash: hashAdminPassword(password),
-});
+seedAdminUser(db, username, password);
 
 console.log(`Seeded admin user "${username}".`);

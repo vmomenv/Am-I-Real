@@ -92,6 +92,17 @@ export function upsertAdminUser(db: Database.Database, input: SeedAdminUserInput
   });
 }
 
+export function seedAdminUser(
+  db: Database.Database,
+  username: string,
+  password: string,
+) {
+  upsertAdminUser(db, {
+    username,
+    passwordHash: hashAdminPassword(password),
+  });
+}
+
 export async function verifyAdminCredentials(
   db: Database.Database,
   input: VerifyAdminCredentialsInput,
