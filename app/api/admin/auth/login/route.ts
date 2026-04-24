@@ -11,16 +11,6 @@ import {
   getAdminSessionCookieOptions,
 } from '@/src/server/admin/session-cookie';
 
-function getClientIpAddress(request: Request) {
-  const forwardedFor = request.headers.get('x-forwarded-for');
-
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0]?.trim() || 'unknown';
-  }
-
-  return request.headers.get('x-real-ip') ?? 'unknown';
-}
-
 function getInvalidPayloadResponse() {
   return NextResponse.json(
     {
@@ -49,7 +39,6 @@ export async function POST(request: Request) {
     password?: string;
   };
   const throttleIdentity = {
-    ipAddress: getClientIpAddress(request),
     username: payload.username?.trim() ?? '',
   };
 

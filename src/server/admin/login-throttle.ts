@@ -2,7 +2,6 @@ const MAX_FAILED_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 5 * 60 * 1000;
 
 type AdminLoginThrottleInput = {
-  ipAddress: string;
   username: string;
 };
 
@@ -14,7 +13,7 @@ type AdminLoginThrottleEntry = {
 const loginThrottleEntries = new Map<string, AdminLoginThrottleEntry>();
 
 function getThrottleKey(input: AdminLoginThrottleInput) {
-  return `${input.ipAddress.trim()}:${input.username.trim().toLowerCase()}`;
+  return input.username.trim().toLowerCase();
 }
 
 export function getAdminLoginThrottleStatus(

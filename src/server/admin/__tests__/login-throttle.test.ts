@@ -8,12 +8,12 @@ import {
 
 describe('login-throttle', () => {
   afterEach(() => {
-    clearAdminLoginThrottle({ ipAddress: '127.0.0.1', username: 'admin' });
+    clearAdminLoginThrottle({ username: 'admin' });
+    clearAdminLoginThrottle({ username: 'other-admin' });
   });
 
-  it('blocks repeated failed login attempts for the same ip and username', () => {
+  it('blocks repeated failed login attempts for the same username regardless of forwarded ip', () => {
     const subject = {
-      ipAddress: '127.0.0.1',
       username: 'admin',
     };
 
@@ -23,6 +23,7 @@ describe('login-throttle', () => {
     }
 
     expect(getAdminLoginThrottleStatus(subject).isBlocked).toBe(true);
-    expect(getAdminLoginThrottleStatus({ ipAddress: '127.0.0.1', username: 'other-admin' }).isBlocked).toBe(false);
+    expect(getAdminLoginThrottleStatus({ username: 'admin' }).isBlocked).toBe(true);
+    expect(getAdminLoginThrottleStatus({ username: 'other-admin' }).isBlocked).toBe(false);
   });
 });
