@@ -108,6 +108,16 @@ function requireAsset(db: Database.Database, id: string) {
   return asset;
 }
 
+function ensureAssetIsNotReferencedBySettings(db: Database.Database, assetId: string) {
+  const referencedSettings = db
+    .prepare('SELECT id FROM site_settings WHERE audioAssetId = ? LIMIT 1')
+    .get(assetId) as { id: string } | undefined;
+
+  if (referencedSettings) {
+    throw new AssetServiceError('ASSET_IN_USE', 'Asset is still referenced by site settings.', 409);
+  }
+}
+
 function validateMimeType(kind: AssetKind, file: File) {
   if (!ALLOWED_MIME_TYPES[kind].has(file.type)) {
     throw new AssetServiceError('INVALID_FILE_TYPE', 'Invalid file type for this asset kind.', 400);
@@ -198,7 +208,11 @@ export function listAssets(input: ListAssetsInput = {}) {
 export function updateAsset(input: UpdateAssetInput) {
   const db = getReadyDatabase(input.db);
 
-  requireAsset(db, input.id);
+  const asset = requireAsset(db, input.id);
+
+  if (asset.kind === 'audio' && !input.isActive) {
+    ensureAssetIsNotReferencedBySettings(db, input.id);
+  }
 
   db.prepare(
     `UPDATE image_assets
@@ -218,13 +232,7 @@ export async function removeAsset(input: RemoveAssetInput) {
 
   requireAsset(db, input.id);
 
-  const referencedSettings = db
-    .prepare('SELECT id FROM site_settings WHERE audioAssetId = ? LIMIT 1')
-    .get(input.id) as { id: string } | undefined;
-
-  if (referencedSettings) {
-    throw new AssetServiceError('ASSET_IN_USE', 'Asset is still referenced by site settings.', 409);
-  }
+  ensureAssetIsNotReferencedBySettings(db, input.id);
 
   return updateAsset({
     db,

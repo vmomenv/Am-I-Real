@@ -199,4 +199,52 @@ describe('assets-service', () => {
 
     db.close();
   });
+
+  it('rejects deactivating an audio asset that is referenced by site settings', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    const { listAssets, updateAsset, uploadAsset } = await import(
+      '@/src/server/admin/assets-service'
+    );
+
+    const uploadedAudioAsset = await uploadAsset({
+      db,
+      uploadsDir: join(tempDirectory, 'uploads'),
+      kind: 'audio',
+      file: new File(['audio-bytes'], 'active-theme.mp3', { type: 'audio/mpeg' }),
+    });
+
+    db.prepare('UPDATE site_settings SET audioAssetId = ? WHERE id = ?').run(
+      uploadedAudioAsset.id,
+      'default',
+    );
+
+    expect(() =>
+      updateAsset({
+        db,
+        id: uploadedAudioAsset.id,
+        isActive: false,
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'ASSET_IN_USE',
+      }),
+    );
+
+    expect(
+      listAssets({
+        db,
+        kind: 'audio',
+        isActive: true,
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        id: uploadedAudioAsset.id,
+        isActive: true,
+      }),
+    ]);
+
+    db.close();
+  });
 });
