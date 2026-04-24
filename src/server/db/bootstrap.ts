@@ -58,11 +58,11 @@ export function bootstrapDatabase(db: Database.Database) {
     );
   `);
 
-  const activeSettings = db
-    .prepare('SELECT id FROM site_settings WHERE isActive = 1 LIMIT 1')
+  const existingSettings = db
+    .prepare('SELECT id FROM site_settings LIMIT 1')
     .get() as { id: string } | undefined;
 
-  if (!activeSettings) {
+  if (!existingSettings) {
     db.prepare(
       `INSERT INTO site_settings (
         id,
