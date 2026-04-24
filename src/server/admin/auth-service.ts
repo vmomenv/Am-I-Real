@@ -31,6 +31,7 @@ type VerifyAdminCredentialsInput = {
 };
 
 const SCRYPT_KEY_LENGTH = 64;
+const HEX_PATTERN = /^[0-9a-f]+$/i;
 
 function mapAdminUser(row: AdminUserRow): AdminUser {
   return {
@@ -72,7 +73,16 @@ export function verifyAdminPassword(password: string, passwordHash: string) {
     return false;
   }
 
+  if (storedHash.length === 0 || storedHash.length % 2 !== 0 || !HEX_PATTERN.test(storedHash)) {
+    return false;
+  }
+
   const expectedHash = Buffer.from(storedHash, 'hex');
+
+  if (expectedHash.length === 0) {
+    return false;
+  }
+
   const actualHash = scryptSync(password, salt, expectedHash.length);
 
   return timingSafeEqual(actualHash, expectedHash);
