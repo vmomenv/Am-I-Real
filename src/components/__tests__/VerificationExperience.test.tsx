@@ -289,6 +289,37 @@ describe('VerificationExperience', () => {
     expect(screen.getByRole('button', { name: '验证' })).toBeEnabled();
   });
 
+  it('shows the existing start failure recovery state when challenge start returns a non-2xx response', async () => {
+    const audioController = createAudioController();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => createConfigResponse(),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          code: 'INVALID_CHALLENGE_POOL',
+          message: 'The active challenge asset pool does not satisfy current site settings.',
+        }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<VerificationExperience audioController={audioController} preCheckDelayMs={0} />);
+
+    expect(await screen.findByText('www.spark-app.store')).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole('button', { name: '我是人类' }));
+
+    expect(await screen.findByText('启动验证失败，请稍后重试')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '正在进行安全验证' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '我是人类' })).toBeInTheDocument();
+    expect(screen.queryByText('第 1 / 10 轮')).not.toBeInTheDocument();
+    expect(audioController.stop).toHaveBeenCalledTimes(1);
+  });
+
   it('returns to the shell when the session expires', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({

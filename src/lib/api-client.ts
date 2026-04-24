@@ -9,6 +9,16 @@ async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function readJsonOrThrow(response: Response) {
+  const payload = await response.json();
+
+  if (response.ok === false) {
+    throw payload;
+  }
+
+  return payload;
+}
+
 export async function fetchPublicConfig() {
   const response = await fetch('/api/challenge/config');
 
@@ -20,7 +30,7 @@ export async function startChallenge() {
     method: 'POST',
   });
 
-  return readJson<ChallengeStartResponse>(response);
+  return (await readJsonOrThrow(response)) as ChallengeStartResponse;
 }
 
 export async function submitChallengeAnswer(payload: ChallengeAnswerRequest) {
