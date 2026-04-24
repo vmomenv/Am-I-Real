@@ -77,4 +77,10 @@ describe('auth-service', () => {
 
     db.close();
   });
+
+  it('rejects malformed stored password hashes', async () => {
+    const { verifyAdminPassword } = await import('@/src/server/admin/auth-service');
+
+    expect(verifyAdminPassword('correct-horse-battery-staple', 'scrypt$salt$zz')).toBe(false);
+  });
 });
