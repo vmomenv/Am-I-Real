@@ -289,7 +289,7 @@ describe('VerificationExperience', () => {
     expect(screen.getByRole('button', { name: '验证' })).toBeEnabled();
   });
 
-  it('shows the existing start failure recovery state when challenge start returns a non-2xx response', async () => {
+  it('shows the challenge pool setup guidance when start returns INVALID_CHALLENGE_POOL', async () => {
     const audioController = createAudioController();
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
@@ -313,7 +313,9 @@ describe('VerificationExperience', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '我是人类' }));
 
-    expect(await screen.findByText('启动验证失败，请稍后重试')).toBeInTheDocument();
+    expect(
+      await screen.findByText('验证资源尚未配置完成，请先上传并配置后端挑战素材后再试'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '正在进行安全验证' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '我是人类' })).toBeInTheDocument();
     expect(screen.queryByText('第 1 / 10 轮')).not.toBeInTheDocument();

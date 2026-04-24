@@ -5,6 +5,17 @@ import type {
   PublicChallengeConfig,
 } from '@/src/lib/challenge-types';
 
+export class ApiClientError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code?: string,
+    message?: string,
+  ) {
+    super(message ?? 'API request failed');
+    this.name = 'ApiClientError';
+  }
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
@@ -13,7 +24,7 @@ async function readJsonOrThrow(response: Response) {
   const payload = await response.json();
 
   if (response.ok === false) {
-    throw payload;
+    throw new ApiClientError(response.status, payload?.code, payload?.message);
   }
 
   return payload;

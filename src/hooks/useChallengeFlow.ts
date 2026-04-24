@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import {
+  ApiClientError,
   fetchPublicConfig,
   startChallenge,
   submitChallengeAnswer,
@@ -14,6 +15,7 @@ import { ChallengeAudioController } from '@/src/lib/audio-controller';
 import type { AudioControllerPort } from '@/src/lib/audio-controller';
 
 const PRECHECK_DELAY_MS = 3000;
+const INVALID_CHALLENGE_POOL_MESSAGE = '验证资源尚未配置完成，请先上传并配置后端挑战素材后再试';
 
 interface ChallengeMetrics {
   currentRoundIndex: number;
@@ -183,8 +185,14 @@ export function useChallengeFlow({ audioController, preCheckDelayMs = PRECHECK_D
           response.totalRounds - response.requiredPassCount + 1,
       });
       setViewState('inChallenge');
-    } catch {
+    } catch (error) {
       stopAudio();
+
+      if (error instanceof ApiClientError && error.code === 'INVALID_CHALLENGE_POOL') {
+        setErrorMessage(INVALID_CHALLENGE_POOL_MESSAGE);
+        return;
+      }
+
       setErrorMessage('启动验证失败，请稍后重试');
     }
   }
