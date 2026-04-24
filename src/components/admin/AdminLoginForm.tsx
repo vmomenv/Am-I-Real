@@ -66,7 +66,7 @@ export function AdminLoginForm() {
           const payload = (await response.json()) as unknown;
 
           if (!response.ok) {
-            setErrorMessage(getErrorMessage(payload) ?? 'Login failed.');
+            setErrorMessage(getErrorMessage(payload) ?? '登录失败，请重试。');
             return;
           }
 
@@ -76,7 +76,7 @@ export function AdminLoginForm() {
           router.refresh();
         })
         .catch(() => {
-          setErrorMessage('Login failed.');
+          setErrorMessage('登录失败，请重试。');
         });
     });
   }
@@ -92,7 +92,7 @@ export function AdminLoginForm() {
     });
 
     if (!response.ok) {
-      setErrorMessage('Logout failed.');
+      setErrorMessage('退出失败，请重试。');
       return;
     }
 
@@ -101,18 +101,18 @@ export function AdminLoginForm() {
   }
 
   return (
-    <section className="w-full max-w-md rounded-[28px] border border-slate-800 bg-slate-900/90 p-8 font-mono shadow-[0_0_40px_rgba(2,6,23,0.35)]">
+    <section className="w-full max-w-md rounded-[28px] border border-slate-800 bg-slate-900/90 p-8 shadow-[0_0_40px_rgba(2,6,23,0.35)]">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400">
-          Groundflare admin
+        <p className="text-xs font-semibold tracking-[0.3em] text-sky-300">
+          运营控制台
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-50">Sign in</h1>
-        <p className="text-sm text-slate-400">Single-operator access for the admin terminal.</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-50">管理员登录</h1>
+        <p className="text-sm leading-7 text-slate-300">请使用后台账号登录，继续处理审核、资源与配置任务。</p>
       </div>
 
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <label className="block space-y-2 text-sm font-medium text-slate-200">
-          <span>Username</span>
+          <span>账号</span>
           <input
             autoComplete="username"
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-50 outline-none transition focus:border-emerald-500"
@@ -122,7 +122,7 @@ export function AdminLoginForm() {
         </label>
 
         <label className="block space-y-2 text-sm font-medium text-slate-200">
-          <span>Password</span>
+          <span>密码</span>
           <input
             autoComplete="current-password"
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-50 outline-none transition focus:border-emerald-500"
@@ -137,7 +137,7 @@ export function AdminLoginForm() {
           disabled={isPending}
           type="submit"
         >
-          {isPending ? 'Signing in...' : 'Sign in'}
+          {isPending ? '登录中...' : '登录后台'}
         </button>
       </form>
 
@@ -149,9 +149,9 @@ export function AdminLoginForm() {
 
       {sessionState?.authenticated ? (
         <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-          <p>Authenticated as {sessionState.user?.username}.</p>
+          <p>当前已登录账号：{sessionState.user?.username}</p>
           <button className="mt-3 cursor-pointer text-sm font-medium text-emerald-300 underline" onClick={handleLogout} type="button">
-            Sign out
+            退出登录
           </button>
         </div>
       ) : null}
