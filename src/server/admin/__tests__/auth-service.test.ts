@@ -51,6 +51,17 @@ describe('auth-service', () => {
       }),
     ).resolves.toBeNull();
 
+    await expect(
+      verifyAdminCredentials(db, {
+        username: '  ADMIN  ',
+        password: 'correct-horse-battery-staple',
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        username: 'admin',
+      }),
+    );
+
     db.close();
   });
 

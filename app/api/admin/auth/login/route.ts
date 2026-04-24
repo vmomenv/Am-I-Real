@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { authenticateAdmin } from '@/src/server/admin/auth-service';
+import { authenticateAdmin, normalizeAdminUsername } from '@/src/server/admin/auth-service';
 import {
   clearAdminLoginThrottle,
   getAdminLoginThrottleStatus,
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   }
 
   const throttleIdentity = {
-    username: payload.username?.trim() ?? '',
+    username: payload.username ? normalizeAdminUsername(payload.username) : '',
   };
 
   if (!payload.username || !payload.password) {
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
   }
 
   const adminUser = await authenticateAdmin({
-    username: payload.username,
+    username: throttleIdentity.username,
     password: payload.password,
   });
 

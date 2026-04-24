@@ -33,6 +33,10 @@ type VerifyAdminCredentialsInput = {
 const SCRYPT_KEY_LENGTH = 64;
 const HEX_PATTERN = /^[0-9a-f]+$/i;
 
+export function normalizeAdminUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
 function mapAdminUser(row: AdminUserRow): AdminUser {
   return {
     id: row.id,
@@ -56,7 +60,7 @@ function getAdminUserByUsername(db: Database.Database, username: string) {
        WHERE username = ?
        LIMIT 1`,
     )
-    .get(username) as AdminUserRow | undefined;
+    .get(normalizeAdminUsername(username)) as AdminUserRow | undefined;
 }
 
 export function hashAdminPassword(password: string) {
@@ -97,7 +101,7 @@ export function upsertAdminUser(db: Database.Database, input: SeedAdminUserInput
        updatedAt = CURRENT_TIMESTAMP`,
   ).run({
     id: randomUUID(),
-    username: input.username,
+    username: normalizeAdminUsername(input.username),
     passwordHash: input.passwordHash,
   });
 }
