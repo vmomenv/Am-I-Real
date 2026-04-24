@@ -101,31 +101,31 @@ export function AdminLoginForm() {
   }
 
   return (
-    <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+    <section className="w-full max-w-md rounded-[28px] border border-slate-800 bg-slate-900/90 p-8 font-mono shadow-[0_0_40px_rgba(2,6,23,0.35)]">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400">
           Groundflare admin
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Sign in</h1>
-        <p className="text-sm text-slate-600">Single-operator access for the admin terminal.</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-50">Sign in</h1>
+        <p className="text-sm text-slate-400">Single-operator access for the admin terminal.</p>
       </div>
 
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-        <label className="block space-y-2 text-sm font-medium text-slate-800">
+        <label className="block space-y-2 text-sm font-medium text-slate-200">
           <span>Username</span>
           <input
             autoComplete="username"
-            className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-slate-500"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-50 outline-none transition focus:border-emerald-500"
             onChange={(event) => setUsername(event.target.value)}
             value={username}
           />
         </label>
 
-        <label className="block space-y-2 text-sm font-medium text-slate-800">
+        <label className="block space-y-2 text-sm font-medium text-slate-200">
           <span>Password</span>
           <input
             autoComplete="current-password"
-            className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-slate-500"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-50 outline-none transition focus:border-emerald-500"
             onChange={(event) => setPassword(event.target.value)}
             type="password"
             value={password}
@@ -133,7 +133,7 @@ export function AdminLoginForm() {
         </label>
 
         <button
-          className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
           disabled={isPending}
           type="submit"
         >
@@ -142,15 +142,15 @@ export function AdminLoginForm() {
       </form>
 
       {errorMessage ? (
-        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
           {errorMessage}
         </p>
       ) : null}
 
       {sessionState?.authenticated ? (
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
           <p>Authenticated as {sessionState.user?.username}.</p>
-          <button className="mt-3 text-sm font-medium text-emerald-900 underline" onClick={handleLogout} type="button">
+          <button className="mt-3 cursor-pointer text-sm font-medium text-emerald-300 underline" onClick={handleLogout} type="button">
             Sign out
           </button>
         </div>

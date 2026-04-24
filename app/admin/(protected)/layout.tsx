@@ -21,16 +21,16 @@ export default function ProtectedAdminLayout({ children }: ProtectedAdminLayoutP
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-8 text-slate-50">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header className="rounded-3xl border border-slate-800 bg-slate-900/80 px-6 py-5">
+    <main className="min-h-screen bg-slate-950 px-6 py-8 font-mono text-slate-50">
+      <div className="mx-auto max-w-[1500px] space-y-6">
+        <header className="rounded-[28px] border border-slate-800 bg-slate-900/80 px-6 py-5 shadow-[0_0_40px_rgba(15,23,42,0.2)]">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
             Groundflare admin terminal
           </p>
           <div className="mt-3 flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Authenticated shell</h1>
-              <p className="mt-1 text-sm text-slate-400">Signed in as {session.username}.</p>
+              <p className="mt-1 text-sm text-slate-400">Signed in as {session.username}. Asset desk live.</p>
             </div>
             <form action="/api/admin/auth/logout" method="post">
               <button
@@ -43,7 +43,7 @@ export default function ProtectedAdminLayout({ children }: ProtectedAdminLayoutP
           </div>
         </header>
 
-        <section className="rounded-3xl border border-dashed border-slate-700 bg-slate-900/60 p-10 text-sm text-slate-300">
+        <section className="rounded-[28px] border border-dashed border-slate-700 bg-slate-900/40 p-6 text-sm text-slate-300 xl:p-8">
           {children}
         </section>
       </div>
