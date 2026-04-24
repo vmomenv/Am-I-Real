@@ -49,8 +49,13 @@ describe('challenge api routes', () => {
 
     const db = createDatabase(dbPath);
     bootstrapDatabase(db);
-    insertAsset(db, { id: 'real-1', kind: 'real', filePath: 'uploads/real/real-1.png' });
-    insertAsset(db, { id: 'real-2', kind: 'real', filePath: 'uploads/real/real-2.png' });
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
 
     for (let index = 0; index < 8; index += 1) {
       insertAsset(db, {

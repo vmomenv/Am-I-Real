@@ -12,6 +12,7 @@ import type Database from 'better-sqlite3';
 
 import { createChallengePlan } from '@/src/server/admin/challenge-generator';
 import {
+  type ChallengeSessionConfig,
   createChallengeSession,
   getChallengeSession,
   saveChallengeSession,
@@ -41,6 +42,14 @@ function toPublicConfig(db?: Database.Database): PublicChallengeConfig {
   };
 }
 
+function toSessionConfig(config: PublicChallengeConfig): ChallengeSessionConfig {
+  return {
+    successRedirectUrl: config.successRedirectUrl,
+    totalRounds: config.totalRounds,
+    requiredPassCount: config.requiredPassCount,
+  };
+}
+
 function failResponse(session: { correctCount: number; mistakeCount: number }) {
   return {
     status: 'failed' as const,
@@ -50,12 +59,15 @@ function failResponse(session: { correctCount: number; mistakeCount: number }) {
   };
 }
 
-function passResponse(session: { correctCount: number; mistakeCount: number }, config: PublicChallengeConfig) {
+function passResponse(
+  session: { correctCount: number; mistakeCount: number },
+  sessionConfig: ChallengeSessionConfig,
+) {
   return {
     status: 'passed' as const,
     correctCount: session.correctCount,
     mistakeCount: session.mistakeCount,
-    redirectUrl: config.successRedirectUrl,
+    redirectUrl: sessionConfig.successRedirectUrl,
   };
 }
 
@@ -81,7 +93,11 @@ export function startChallengeSession(input: { db?: Database.Database; rng?: () 
     totalRounds: config.totalRounds,
     rng: input.rng,
   });
-  const session = createChallengeSession({ db: input.db, roundPlan });
+  const session = createChallengeSession({
+    db: input.db,
+    roundPlan,
+    sessionConfig: toSessionConfig(config),
+  });
 
   return {
     ...config,
@@ -95,7 +111,6 @@ export function submitChallengeAnswer(
   input: ChallengeAnswerRequest,
   options: { db?: Database.Database } = {},
 ): ChallengeAnswerResponse {
-  const config = toPublicConfig(options.db);
   const session = getChallengeSession({ db: options.db, id: input.sessionId });
 
   if (!session || session.status !== 'active') {
@@ -122,8 +137,8 @@ export function submitChallengeAnswer(
   }
 
   const outcome = getChallengeOutcome(
-    config.totalRounds,
-    config.requiredPassCount,
+    session.sessionConfig.totalRounds,
+    session.sessionConfig.requiredPassCount,
     session.correctCount,
     session.mistakeCount,
   );
@@ -136,7 +151,7 @@ export function submitChallengeAnswer(
         status: 'passed',
       },
     });
-    return passResponse(session, config);
+    return passResponse(session, session.sessionConfig);
   }
 
   if (outcome === 'failed') {
@@ -174,8 +189,8 @@ export function submitChallengeAnswer(
     correctCount: session.correctCount,
     mistakeCount: session.mistakeCount,
     remainingMistakesBeforeFailure: getRemainingMistakesBeforeFailure(
-      config.totalRounds,
-      config.requiredPassCount,
+      session.sessionConfig.totalRounds,
+      session.sessionConfig.requiredPassCount,
       session.mistakeCount,
     ),
     currentRoundIndex: session.currentRoundIndex + 1,

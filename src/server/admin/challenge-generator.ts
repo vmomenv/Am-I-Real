@@ -9,8 +9,6 @@ type AssetRow = {
   filePath: string;
 };
 
-const REAL_POSITIONS = [1, 4, 7, 2, 8, 0, 5, 3, 6, 4];
-
 export class ChallengeGeneratorError extends Error {
   constructor(message: string) {
     super(message);
@@ -67,6 +65,10 @@ function toPublicAssetUrl(filePath: string) {
   return `/${filePath}`;
 }
 
+function getRealPosition(rng: () => number) {
+  return Math.floor(rng() * 9);
+}
+
 export function createChallengePlan(input: {
   db?: Database.Database;
   totalRounds: number;
@@ -82,7 +84,7 @@ export function createChallengePlan(input: {
   return Array.from({ length: input.totalRounds }, (_, roundIndex) => {
     const realAsset = realAssets[roundIndex];
     const aiWindow = takeStableAiWindow(aiAssets, roundIndex);
-    const realPosition = REAL_POSITIONS[roundIndex % REAL_POSITIONS.length];
+    const realPosition = getRealPosition(rng);
     const options = aiWindow.map((asset, optionIndex) => ({
       id: asset.id,
       imageUrl: toPublicAssetUrl(asset.filePath),

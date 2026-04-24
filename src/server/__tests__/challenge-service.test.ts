@@ -47,6 +47,10 @@ function getStoredRoundPlan(db: ReturnType<typeof createDatabase>, sessionId: st
   return JSON.parse(row.roundPlanJson) as InternalRound[];
 }
 
+function getCorrectPosition(round: { correctOptionId: string; options: Array<{ id: string }> }) {
+  return round.options.findIndex((option) => option.id === round.correctOptionId);
+}
+
 describe('challenge-service', () => {
   let tempDirectory: string;
 
@@ -191,6 +195,120 @@ describe('challenge-service', () => {
         correctCount: 1,
       }),
     );
+
+    db.close();
+  });
+
+  it('uses the session snapshot contract after start even if site settings change later', () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
+    const started = startChallengeSession({
+      db,
+      rng: createSequenceRng([
+        0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 0.14, 0.24, 0.34, 0.44, 0.54,
+        0.64, 0.74, 0.84, 0.94, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.11,
+      ]),
+    });
+    const roundPlan = getStoredRoundPlan(db, started.sessionId);
+
+    db.prepare(
+      `UPDATE site_settings
+       SET successRedirectUrl = ?, requiredPassCount = ?, totalRounds = ?
+       WHERE id = ?`,
+    ).run('https://drifted.example', 10, 10, 'default');
+
+    let roundId = started.round.roundId;
+
+    for (let roundIndex = 0; roundIndex < 7; roundIndex += 1) {
+      const response = submitChallengeAnswer(
+        {
+          sessionId: started.sessionId,
+          roundId,
+          selectedOptionId: roundPlan[roundIndex].correctOptionId,
+        },
+        { db },
+      );
+
+      if (roundIndex < 6) {
+        expect(response.status).toBe('continue');
+        if (response.status === 'continue') {
+          roundId = response.round.roundId;
+        }
+      } else {
+        expect(response).toEqual(
+          expect.objectContaining({
+            status: 'passed',
+            correctCount: 7,
+            redirectUrl: 'https://www.spark-app.store',
+          }),
+        );
+      }
+    }
+
+    db.close();
+  });
+
+  it('randomizes correct-option placement per session instead of using one fixed position pattern', () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
+    const sharedShufflePrefix = [
+      0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 0.14, 0.24, 0.34, 0.44, 0.54,
+      0.64, 0.74, 0.84, 0.94,
+    ];
+
+    const firstSession = startChallengeSession({
+      db,
+      rng: createSequenceRng([...sharedShufflePrefix, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    });
+    const secondSession = startChallengeSession({
+      db,
+      rng: createSequenceRng([
+        ...sharedShufflePrefix,
+        0.99, 0.88, 0.77, 0.66, 0.55, 0.44, 0.33, 0.22, 0.11, 0.5,
+      ]),
+    });
+
+    const firstPlan = getStoredRoundPlan(db, firstSession.sessionId);
+    const secondPlan = getStoredRoundPlan(db, secondSession.sessionId);
+
+    expect(firstPlan.map((round) => round.correctOptionId)).toEqual(
+      secondPlan.map((round) => round.correctOptionId),
+    );
+    expect(firstPlan.map(getCorrectPosition)).not.toEqual(secondPlan.map(getCorrectPosition));
 
     db.close();
   });

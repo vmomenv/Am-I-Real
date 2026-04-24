@@ -11,6 +11,25 @@ const DEFAULT_SITE_SETTINGS = {
   requiredPassCount: 7,
 };
 
+const DEFAULT_CHALLENGE_SESSION_CONFIG = JSON.stringify({
+  successRedirectUrl: DEFAULT_SITE_SETTINGS.successRedirectUrl,
+  totalRounds: DEFAULT_SITE_SETTINGS.totalRounds,
+  requiredPassCount: DEFAULT_SITE_SETTINGS.requiredPassCount,
+});
+
+function ensureChallengeSessionConfigColumn(db: Database.Database) {
+  const challengeSessionColumns = db
+    .prepare("PRAGMA table_info('challenge_sessions')")
+    .all() as Array<{ name: string }>;
+
+  if (!challengeSessionColumns.some((column) => column.name === 'sessionConfigJson')) {
+    db.exec(
+      `ALTER TABLE challenge_sessions
+       ADD COLUMN sessionConfigJson TEXT NOT NULL DEFAULT '${DEFAULT_CHALLENGE_SESSION_CONFIG}'`,
+    );
+  }
+}
+
 export function bootstrapDatabase(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS admin_users (
@@ -53,9 +72,12 @@ export function bootstrapDatabase(db: Database.Database) {
       currentRoundIndex INTEGER NOT NULL DEFAULT 0,
       correctCount INTEGER NOT NULL DEFAULT 0,
       mistakeCount INTEGER NOT NULL DEFAULT 0,
-      roundPlanJson TEXT NOT NULL
+      roundPlanJson TEXT NOT NULL,
+      sessionConfigJson TEXT NOT NULL DEFAULT '${DEFAULT_CHALLENGE_SESSION_CONFIG}'
     );
   `);
+
+  ensureChallengeSessionConfigColumn(db);
 
   const existingSettings = db
     .prepare('SELECT id FROM site_settings LIMIT 1')

@@ -38,7 +38,13 @@ describe('challenge-sessions-service', () => {
       },
     ];
 
-    const session = createChallengeSession({ db, roundPlan });
+    const sessionConfig = {
+      successRedirectUrl: 'https://www.spark-app.store',
+      totalRounds: 10,
+      requiredPassCount: 7,
+    };
+
+    const session = createChallengeSession({ db, roundPlan, sessionConfig });
 
     expect(session).toEqual(
       expect.objectContaining({
@@ -48,12 +54,13 @@ describe('challenge-sessions-service', () => {
         correctCount: 0,
         mistakeCount: 0,
         roundPlan,
+        sessionConfig,
       }),
     );
 
     const stored = db
       .prepare(
-        'SELECT status, currentRoundIndex, correctCount, mistakeCount, roundPlanJson FROM challenge_sessions WHERE id = ?',
+        'SELECT status, currentRoundIndex, correctCount, mistakeCount, roundPlanJson, sessionConfigJson FROM challenge_sessions WHERE id = ?',
       )
       .get(session.id) as {
       status: string;
@@ -61,6 +68,7 @@ describe('challenge-sessions-service', () => {
       correctCount: number;
       mistakeCount: number;
       roundPlanJson: string;
+      sessionConfigJson: string;
     };
 
     expect(stored).toEqual({
@@ -69,6 +77,7 @@ describe('challenge-sessions-service', () => {
       correctCount: 0,
       mistakeCount: 0,
       roundPlanJson: JSON.stringify(roundPlan),
+      sessionConfigJson: JSON.stringify(sessionConfig),
     });
 
     db.close();
@@ -83,6 +92,11 @@ describe('challenge-sessions-service', () => {
 
     const created = createChallengeSession({
       db,
+      sessionConfig: {
+        successRedirectUrl: 'https://www.spark-app.store',
+        totalRounds: 10,
+        requiredPassCount: 7,
+      },
       roundPlan: [
         {
           roundId: 'round-1',

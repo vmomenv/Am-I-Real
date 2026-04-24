@@ -15,10 +15,18 @@ type ChallengeSessionRow = {
   correctCount: number;
   mistakeCount: number;
   roundPlanJson: string;
+  sessionConfigJson: string;
+};
+
+export type ChallengeSessionConfig = {
+  successRedirectUrl: string;
+  totalRounds: number;
+  requiredPassCount: number;
 };
 
 export type PersistedChallengeSession = Omit<ChallengeSessionRow, 'roundPlanJson'> & {
   roundPlan: InternalRound[];
+  sessionConfig: ChallengeSessionConfig;
 };
 
 function getReadyDatabase(db = getDatabase()) {
@@ -30,6 +38,7 @@ function mapSession(row: ChallengeSessionRow): PersistedChallengeSession {
   return {
     ...row,
     roundPlan: JSON.parse(row.roundPlanJson) as InternalRound[],
+    sessionConfig: JSON.parse(row.sessionConfigJson) as ChallengeSessionConfig,
   };
 }
 
@@ -41,7 +50,11 @@ function getFinishedAt(status: PersistedChallengeSession['status'], currentFinis
   return currentFinishedAt ?? new Date().toISOString();
 }
 
-export function createChallengeSession(input: { db?: Database.Database; roundPlan: InternalRound[] }) {
+export function createChallengeSession(input: {
+  db?: Database.Database;
+  roundPlan: InternalRound[];
+  sessionConfig: ChallengeSessionConfig;
+}) {
   const db = getReadyDatabase(input.db);
   const id = randomUUID();
 
@@ -52,9 +65,10 @@ export function createChallengeSession(input: { db?: Database.Database; roundPla
       currentRoundIndex,
       correctCount,
       mistakeCount,
-      roundPlanJson
-    ) VALUES (?, 'active', 0, 0, 0, ?)`,
-  ).run(id, JSON.stringify(input.roundPlan));
+      roundPlanJson,
+      sessionConfigJson
+    ) VALUES (?, 'active', 0, 0, 0, ?, ?)`,
+  ).run(id, JSON.stringify(input.roundPlan), JSON.stringify(input.sessionConfig));
 
   return getChallengeSession({ db, id })!;
 }
@@ -64,6 +78,7 @@ export function getChallengeSession(input: { db?: Database.Database; id: string 
   const row = db
     .prepare(
       `SELECT id, status, startedAt, finishedAt, currentRoundIndex, correctCount, mistakeCount, roundPlanJson
+              , sessionConfigJson
        FROM challenge_sessions
        WHERE id = ?
        LIMIT 1`,
@@ -87,7 +102,8 @@ export function saveChallengeSession(input: {
          currentRoundIndex = @currentRoundIndex,
          correctCount = @correctCount,
          mistakeCount = @mistakeCount,
-         roundPlanJson = @roundPlanJson
+         roundPlanJson = @roundPlanJson,
+         sessionConfigJson = @sessionConfigJson
      WHERE id = @id`,
   ).run({
     id: input.session.id,
@@ -97,6 +113,7 @@ export function saveChallengeSession(input: {
     correctCount: input.session.correctCount,
     mistakeCount: input.session.mistakeCount,
     roundPlanJson: JSON.stringify(input.session.roundPlan),
+    sessionConfigJson: JSON.stringify(input.session.sessionConfig),
   });
 
   return getChallengeSession({ db, id: input.session.id })!;
@@ -109,6 +126,7 @@ export function listChallengeSessions(input: { db?: Database.Database } = {}) {
     db
       .prepare(
         `SELECT id, status, startedAt, finishedAt, currentRoundIndex, correctCount, mistakeCount, roundPlanJson
+                , sessionConfigJson
          FROM challenge_sessions
          ORDER BY datetime(startedAt) DESC, rowid DESC`,
       )

@@ -39,6 +39,10 @@ describe('challenge-generator', () => {
     };
   }
 
+  function getCorrectPosition(round: { correctOptionId: string; options: Array<{ id: string }> }) {
+    return round.options.findIndex((option) => option.id === round.correctOptionId);
+  }
+
   beforeEach(async () => {
     tempDirectory = await mkdtemp(join(tmpdir(), 'groundflare-generator-'));
   });
@@ -98,6 +102,54 @@ describe('challenge-generator', () => {
         expect(new Set(round.options.filter((option) => option.id.startsWith('ai-')).map((option) => option.id)).size).toBe(8);
       }
     }
+
+    db.close();
+  });
+
+  it('randomizes the real-image position per generated session instead of using a fixed round pattern', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
+    const { createChallengePlan } = await import('@/src/server/admin/challenge-generator');
+
+    const sharedShufflePrefix = [
+      0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 0.14, 0.24, 0.34, 0.44, 0.54,
+      0.64, 0.74, 0.84, 0.94,
+    ];
+    const firstPlan = createChallengePlan({
+      db,
+      totalRounds: 10,
+      rng: createSequenceRng([...sharedShufflePrefix, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    });
+    const secondPlan = createChallengePlan({
+      db,
+      totalRounds: 10,
+      rng: createSequenceRng([
+        ...sharedShufflePrefix,
+        0.99, 0.88, 0.77, 0.66, 0.55, 0.44, 0.33, 0.22, 0.11, 0.5,
+      ]),
+    });
+
+    expect(firstPlan.map((round) => round.correctOptionId)).toEqual(
+      secondPlan.map((round) => round.correctOptionId),
+    );
+    expect(firstPlan.map(getCorrectPosition)).not.toEqual(secondPlan.map(getCorrectPosition));
 
     db.close();
   });
