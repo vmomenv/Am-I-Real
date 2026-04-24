@@ -62,7 +62,7 @@ function takeStableAiWindow(aiAssets: AssetRow[], roundIndex: number) {
 }
 
 function toPublicAssetUrl(filePath: string) {
-  return `/${filePath}`;
+  return `/${filePath.replace(/\\/g, '/')}`;
 }
 
 function getRealPosition(rng: () => number) {

@@ -1,3 +1,7 @@
+'use client';
+
+import { useRef } from 'react';
+
 import type { Asset } from '@/src/server/admin/assets-service';
 
 import { AssetCard } from '@/src/components/admin/AssetCard';
@@ -13,9 +17,11 @@ type AssetColumnProps = {
   onSearchChange?: (value: string) => void;
   onSortChange?: (value: 'latest' | 'oldest' | 'name-asc' | 'name-desc') => void;
   onToggleAsset?: (asset: Asset) => void;
+  onUploadFiles?: (files: File[]) => void;
   onUpload?: () => void;
   searchValue?: string;
   sortValue?: 'latest' | 'oldest' | 'name-asc' | 'name-desc';
+  uploadAccept?: string;
 };
 
 const TITLE_LABELS: Record<string, string> = {
@@ -39,12 +45,24 @@ export function AssetColumn({
   onSearchChange,
   onSortChange,
   onToggleAsset,
+  onUploadFiles,
   onUpload,
   searchValue = '',
   sortValue = 'latest',
+  uploadAccept = 'image/jpeg,image/png,image/webp',
 }: AssetColumnProps) {
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const localizedTitle = TITLE_LABELS[title] ?? title;
   const localizedDescription = DESCRIPTION_LABELS[description] ?? description;
+
+  function handleUploadClick() {
+    if (onUploadFiles) {
+      uploadInputRef.current?.click();
+      return;
+    }
+
+    onUpload?.();
+  }
 
   return (
     <section className="rounded-[28px] border border-slate-800 bg-slate-900/70 p-5">
@@ -60,11 +78,29 @@ export function AssetColumn({
           </div>
           <button
             className="cursor-pointer rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:border-emerald-400 hover:text-white"
-            onClick={onUpload}
+            onClick={handleUploadClick}
             type="button"
           >
             上传图片
           </button>
+          {onUploadFiles ? (
+            <input
+              accept={uploadAccept}
+              aria-label="上传图片"
+              className="sr-only"
+              multiple
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+
+                if (files.length > 0) {
+                  onUploadFiles(files);
+                  event.target.value = '';
+                }
+              }}
+              ref={uploadInputRef}
+              type="file"
+            />
+          ) : null}
         </div>
       </div>
 

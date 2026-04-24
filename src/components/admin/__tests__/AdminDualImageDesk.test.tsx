@@ -12,12 +12,20 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/src/components/admin/AssetColumn', () => ({
-  AssetColumn: ({ title, onUploadRequest }: { title: string; onUploadRequest?: () => void }) => (
+  AssetColumn: ({ title, onUploadFiles }: { title: string; onUploadFiles?: (files: File[]) => void }) => (
     <section>
       <h2>{title}</h2>
-      <button onClick={onUploadRequest} type="button">
-        {title} 上传
-      </button>
+      <input
+        aria-label={`${title} 上传`}
+        multiple
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          if (files.length > 0) {
+            onUploadFiles?.(files);
+          }
+        }}
+        type="file"
+      />
     </section>
   ),
 }));
@@ -151,7 +159,8 @@ describe('AdminDualImageDesk', () => {
 
     expect(screen.getByText('当前管理员')).toBeInTheDocument();
     expect(screen.getByText('最近保存时间')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '快速上传' })).toBeInTheDocument();
+    expect(screen.getByText('素材上传')).toBeInTheDocument();
+    expect(screen.getByText('请使用左右图片池内的上传按钮')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '退出登录' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'AI 图片池' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '真实图片池' })).toBeInTheDocument();

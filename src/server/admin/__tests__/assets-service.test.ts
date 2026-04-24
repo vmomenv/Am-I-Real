@@ -356,6 +356,49 @@ describe('assets-service', () => {
     db.close();
   });
 
+  it('allows deactivating and removing real/ai assets when the pool is already below the configured minimum', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    const { removeAsset, updateAsset, uploadAsset } = await import('@/src/server/admin/assets-service');
+
+    const uploadedRealAsset = await uploadAsset({
+      db,
+      uploadsDir: join(tempDirectory, 'uploads'),
+      kind: 'real',
+      file: new File(['real-bytes'], 'real-1.png', { type: 'image/png' }),
+    });
+
+    const uploadedAiAsset = await uploadAsset({
+      db,
+      uploadsDir: join(tempDirectory, 'uploads'),
+      kind: 'ai',
+      file: new File(['ai-bytes'], 'ai-1.png', { type: 'image/png' }),
+    });
+
+    expect(() =>
+      updateAsset({
+        db,
+        id: uploadedRealAsset.id,
+        isActive: false,
+      }),
+    ).not.toThrow();
+
+    await expect(
+      removeAsset({
+        db,
+        id: uploadedAiAsset.id,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: uploadedAiAsset.id,
+        isActive: false,
+      }),
+    );
+
+    db.close();
+  });
+
   it('renames an asset and trims the incoming filename', async () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);

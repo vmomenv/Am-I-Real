@@ -95,9 +95,14 @@ function getUploadsDirectory(uploadsDir?: string) {
   return resolve(uploadsDir ?? process.env.GROUNDFLARE_UPLOADS_DIR ?? 'uploads');
 }
 
+function normalizePublicFilePath(filePath: string) {
+  return filePath.replace(/\\/g, '/');
+}
+
 function mapAsset(row: AssetRow): Asset {
   return {
     ...row,
+    filePath: normalizePublicFilePath(row.filePath),
     isActive: Boolean(row.isActive),
   };
 }
@@ -162,9 +167,14 @@ function ensureAssetDoesNotBreakChallengePool(db: Database.Database, asset: Asse
     return;
   }
 
-  const poolCounts = getActivePoolCounts(db, asset.id);
+  const currentPoolCounts = getActivePoolCounts(db);
+  const nextPoolCounts = getActivePoolCounts(db, asset.id);
 
-  if (asset.kind === 'real' && poolCounts.realCount < settings.totalRounds) {
+  if (
+    asset.kind === 'real' &&
+    currentPoolCounts.realCount >= settings.totalRounds &&
+    nextPoolCounts.realCount < settings.totalRounds
+  ) {
     throw new AssetServiceError(
       'ASSET_IN_USE',
       'Asset is required to satisfy the active challenge pool.',
@@ -172,7 +182,7 @@ function ensureAssetDoesNotBreakChallengePool(db: Database.Database, asset: Asse
     );
   }
 
-  if (asset.kind === 'ai' && poolCounts.aiCount < 8) {
+  if (asset.kind === 'ai' && currentPoolCounts.aiCount >= 8 && nextPoolCounts.aiCount < 8) {
     throw new AssetServiceError(
       'ASSET_IN_USE',
       'Asset is required to satisfy the active challenge pool.',

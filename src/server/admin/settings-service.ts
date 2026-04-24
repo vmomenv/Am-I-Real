@@ -150,7 +150,7 @@ function validateSettings(db: Database.Database, input: UpdateSiteSettingsInput)
 }
 
 function toPublicAssetUrl(filePath: string | null) {
-  return filePath ? `/${filePath}` : DEFAULT_AUDIO_URL;
+  return filePath ? `/${filePath.replace(/\\/g, '/')}` : DEFAULT_AUDIO_URL;
 }
 
 function mapSettings(db: Database.Database, row: SiteSettingsRow): SiteSettings {

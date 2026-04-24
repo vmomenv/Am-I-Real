@@ -23,6 +23,7 @@ export function ChallengeCard({
 }: ChallengeCardProps) {
   const [currentSelection, setCurrentSelection] = useState<string | null>(selectedOptionId);
   const [failedImageIds, setFailedImageIds] = useState<string[]>([]);
+  const [reloadVersion, setReloadVersion] = useState(0);
   const hasImageErrors = failedImageIds.length > 0;
 
   useEffect(() => {
@@ -42,6 +43,12 @@ export function ChallengeCard({
 
   function handleReload() {
     setFailedImageIds([]);
+    setReloadVersion((current) => current + 1);
+  }
+
+  function buildImageUrl(imageUrl: string) {
+    const separator = imageUrl.includes('?') ? '&' : '?';
+    return `${imageUrl}${separator}reload=${reloadVersion}`;
   }
 
   return (
@@ -77,8 +84,9 @@ export function ChallengeCard({
                 <img
                   alt={option.alt}
                   className="aspect-square w-full object-cover"
+                  key={`${option.id}-${reloadVersion}`}
                   onError={() => handleImageError(option.id)}
-                  src={option.imageUrl}
+                  src={buildImageUrl(option.imageUrl)}
                 />
               )}
             </button>

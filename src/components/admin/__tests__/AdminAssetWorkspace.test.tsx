@@ -35,7 +35,7 @@ describe('admin asset workspace components', () => {
           onSearchChange={(value) => searchChanges.push(value)}
           onSortChange={(value) => sortChanges.push(value)}
           onToggleAsset={() => undefined}
-          onUpload={() => uploadedKinds.push('ai')}
+          onUploadFiles={(files) => uploadedKinds.push(`ai:${files.map((file) => file.name).join(',')}`)}
           searchValue=""
           sortValue="latest"
           title="AI Image Pool"
@@ -50,7 +50,7 @@ describe('admin asset workspace components', () => {
           onSearchChange={(value) => searchChanges.push(value)}
           onSortChange={(value) => sortChanges.push(value)}
           onToggleAsset={() => undefined}
-          onUpload={() => uploadedKinds.push('real')}
+          onUploadFiles={(files) => uploadedKinds.push(`real:${files.map((file) => file.name).join(',')}`)}
           searchValue=""
           sortValue="latest"
           title="Real Photo Pool"
@@ -76,13 +76,24 @@ describe('admin asset workspace components', () => {
     fireEvent.change(screen.getAllByRole('combobox', { name: '状态筛选' })[1], {
       target: { value: 'inactive' },
     });
-    fireEvent.click(screen.getAllByRole('button', { name: '上传图片' })[0]);
-    fireEvent.click(screen.getAllByRole('button', { name: '上传图片' })[1]);
+    fireEvent.change(screen.getAllByLabelText('上传图片')[0], {
+      target: {
+        files: [
+          new File(['ai-a'], 'ai-a.png', { type: 'image/png' }),
+          new File(['ai-b'], 'ai-b.png', { type: 'image/png' }),
+        ],
+      },
+    });
+    fireEvent.change(screen.getAllByLabelText('上传图片')[1], {
+      target: {
+        files: [new File(['real-a'], 'real-a.png', { type: 'image/png' })],
+      },
+    });
 
     expect(searchChanges).toEqual(['alpha']);
     expect(sortChanges).toEqual(['name-asc']);
     expect(filterChanges).toEqual(['inactive']);
-    expect(uploadedKinds).toEqual(['ai', 'real']);
+    expect(uploadedKinds).toEqual(['ai:ai-a.png,ai-b.png', 'real:real-a.png']);
   });
 
   it('renders Chinese asset status and action labels with live action hooks', () => {

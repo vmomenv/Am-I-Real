@@ -1,3 +1,5 @@
+'use client';
+
 import type { Asset } from '@/src/server/admin/assets-service';
 
 import { useId, useState } from 'react';
@@ -48,8 +50,21 @@ export function AssetCard({ asset, onDelete, onRename, onToggle }: AssetCardProp
         </span>
       </div>
 
-      <div className="mt-4 rounded-xl border border-dashed border-slate-800 bg-slate-900/60 px-3 py-6 text-center text-xs uppercase tracking-[0.25em] text-slate-500">
-        {asset.kind === 'ai' ? 'AI 图片预览' : asset.kind === 'real' ? '真人图片预览' : '音频资源预览'}
+      <div className="mt-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60">
+        {asset.kind === 'audio' ? (
+          <div className="px-3 py-4">
+            <audio className="w-full" controls preload="none" src={`/${asset.filePath}`}>
+              浏览器暂不支持音频预览。
+            </audio>
+          </div>
+        ) : (
+          <img
+            alt={asset.originalFilename}
+            className="aspect-[4/3] w-full bg-slate-950 object-cover"
+            loading="lazy"
+            src={`/${asset.filePath}`}
+          />
+        )}
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-400">
