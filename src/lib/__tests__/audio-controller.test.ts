@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChallengeAudioController } from '../audio-controller';
 
+const TARGET_VOLUME = Math.pow(10, -15 / 20);
+
 describe('ChallengeAudioController', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
 
-  it('fades audio in to 60 percent volume', async () => {
+  it('fades audio in to minus 15 decibels', async () => {
     const play = vi.fn().mockResolvedValue(undefined);
     const pause = vi.fn();
     const audio = {
@@ -31,7 +33,7 @@ describe('ChallengeAudioController', () => {
 
     await vi.advanceTimersByTimeAsync(650);
 
-    expect(audio.volume).toBeCloseTo(0.6, 2);
+    expect(audio.volume).toBeCloseTo(TARGET_VOLUME, 2);
     expect(pause).not.toHaveBeenCalled();
   });
 
@@ -44,7 +46,7 @@ describe('ChallengeAudioController', () => {
       pause,
       play,
       src: '',
-      volume: 0.6,
+      volume: TARGET_VOLUME,
     } as unknown as HTMLAudioElement;
 
     const controller = new ChallengeAudioController(audio);

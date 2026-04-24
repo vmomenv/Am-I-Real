@@ -4,7 +4,7 @@ export interface AudioControllerPort {
 }
 
 const FADE_INTERVAL_MS = 50;
-const TARGET_VOLUME = 0.6;
+const TARGET_VOLUME = Math.pow(10, -15 / 20);
 const VOLUME_STEP = 0.05;
 
 export class ChallengeAudioController implements AudioControllerPort {
