@@ -1,15 +1,75 @@
-import { GET as getConfig } from '@/app/api/challenge/config/route';
-import { POST as startChallenge } from '@/app/api/challenge/start/route';
-import { POST as answerChallenge } from '@/app/api/challenge/answer/route';
-import { getPublicConfig, resetChallengeSessions } from '@/src/server/challenge-service';
-import { MOCK_ROUNDS } from '@/src/server/mock-question-bank';
+// @vitest-environment node
+
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { bootstrapDatabase } from '@/src/server/db/bootstrap';
+import { createDatabase } from '@/src/server/db/client';
+import { vi } from 'vitest';
+
+function insertAsset(
+  db: ReturnType<typeof createDatabase>,
+  asset: { id: string; kind: 'ai' | 'real'; filePath: string },
+) {
+  db.prepare(
+    `INSERT INTO image_assets (
+      id,
+      kind,
+      filePath,
+      originalFilename,
+      mimeType,
+      width,
+      height,
+      fileSize,
+      isActive
+    ) VALUES (?, ?, ?, ?, 'image/png', NULL, NULL, 128, 1)`,
+  ).run(asset.id, asset.kind, asset.filePath, `${asset.id}.png`);
+}
+
+async function loadChallengeModules() {
+  vi.resetModules();
+
+  return Promise.all([
+    import('@/app/api/challenge/config/route'),
+    import('@/app/api/challenge/start/route'),
+    import('@/app/api/challenge/answer/route'),
+    import('@/src/server/challenge-service'),
+  ]);
+}
 
 describe('challenge api routes', () => {
-  beforeEach(() => {
-    resetChallengeSessions();
+  let tempDirectory: string;
+  let dbPath: string;
+
+  beforeEach(async () => {
+    tempDirectory = await mkdtemp(join(tmpdir(), 'groundflare-routes-'));
+    dbPath = join(tempDirectory, 'groundflare.sqlite');
+    process.env.GROUNDFLARE_DB_PATH = dbPath;
+
+    const db = createDatabase(dbPath);
+    bootstrapDatabase(db);
+    insertAsset(db, { id: 'real-1', kind: 'real', filePath: 'uploads/real/real-1.png' });
+    insertAsset(db, { id: 'real-2', kind: 'real', filePath: 'uploads/real/real-2.png' });
+
+    for (let index = 0; index < 8; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
+    db.close();
+  });
+
+  afterEach(async () => {
+    delete process.env.GROUNDFLARE_DB_PATH;
+    await rm(tempDirectory, { recursive: true, force: true });
   });
 
   it('returns the public config payload', async () => {
+    const [{ GET: getConfig }, , , { getPublicConfig }] = await loadChallengeModules();
     const response = await getConfig();
 
     expect(response.status).toBe(200);
@@ -17,8 +77,17 @@ describe('challenge api routes', () => {
   });
 
   it('supports a start to answer flow through the route handlers', async () => {
+    const [, { POST: startChallenge }, { POST: answerChallenge }] = await loadChallengeModules();
     const startResponse = await startChallenge();
     const started = await startResponse.json();
+
+    const db = createDatabase(dbPath);
+    const stored = db
+      .prepare('SELECT roundPlanJson FROM challenge_sessions WHERE id = ?')
+      .get(started.sessionId) as { roundPlanJson: string };
+    const roundPlan = JSON.parse(stored.roundPlanJson) as Array<{ correctOptionId: string }>;
+
+    db.close();
 
     expect(startResponse.status).toBe(200);
     expect(started).toEqual(
@@ -37,7 +106,7 @@ describe('challenge api routes', () => {
         body: JSON.stringify({
           sessionId: started.sessionId,
           roundId: started.round.roundId,
-          selectedOptionId: MOCK_ROUNDS[0].correctOptionId,
+          selectedOptionId: roundPlan[0].correctOptionId,
         }),
       }),
     );

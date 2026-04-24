@@ -2,37 +2,46 @@ import type {
   ChallengeAnswerRequest,
   ChallengeAnswerResponse,
   ChallengeStartResponse,
-  InternalRound,
   PublicChallengeConfig,
 } from '@/src/lib/challenge-types';
 import {
   getChallengeOutcome,
   getRemainingMistakesBeforeFailure,
 } from '@/src/lib/challenge-rules';
+import type Database from 'better-sqlite3';
+
+import { generateChallengeRounds } from '@/src/server/admin/challenge-generator';
 import {
-  MOCK_ROUNDS,
-  PUBLIC_CHALLENGE_CONFIG,
-  toPublicRound,
-} from '@/src/server/mock-question-bank';
+  createChallengeSession,
+  getChallengeSession,
+  saveChallengeSession,
+} from '@/src/server/admin/challenge-sessions-service';
+import { getSiteSettings } from '@/src/server/admin/settings-service';
 
-interface ChallengeSession {
-  sessionId: string;
-  rounds: InternalRound[];
-  currentRoundIndex: number;
-  correctCount: number;
-  mistakeCount: number;
+const BRAND_NAME = 'Groundflare';
+
+function toPublicRound(round: { roundId: string; prompt: string; options: Array<{ id: string; imageUrl: string; alt: string }> }) {
+  return {
+    roundId: round.roundId,
+    prompt: round.prompt,
+    options: round.options,
+  };
 }
 
-const sessions = new Map<string, ChallengeSession>();
+function toPublicConfig(db?: Database.Database): PublicChallengeConfig {
+  const settings = getSiteSettings({ db });
 
-function cloneRounds() {
-  return MOCK_ROUNDS.map((round) => ({
-    ...round,
-    options: round.options.map((option) => ({ ...option })),
-  }));
+  return {
+    brandName: BRAND_NAME,
+    displaySiteName: settings.displaySiteName,
+    successRedirectUrl: settings.successRedirectUrl,
+    audioUrl: settings.audioUrl,
+    totalRounds: settings.totalRounds,
+    requiredPassCount: settings.requiredPassCount,
+  };
 }
 
-function failResponse(session: ChallengeSession) {
+function failResponse(session: { correctCount: number; mistakeCount: number }) {
   return {
     status: 'failed' as const,
     correctCount: session.correctCount,
@@ -41,12 +50,12 @@ function failResponse(session: ChallengeSession) {
   };
 }
 
-function passResponse(session: ChallengeSession) {
+function passResponse(session: { correctCount: number; mistakeCount: number }, config: PublicChallengeConfig) {
   return {
     status: 'passed' as const,
     correctCount: session.correctCount,
     mistakeCount: session.mistakeCount,
-    redirectUrl: PUBLIC_CHALLENGE_CONFIG.successRedirectUrl,
+    redirectUrl: config.successRedirectUrl,
   };
 }
 
@@ -57,47 +66,48 @@ function expiredResponse() {
   };
 }
 
-export function getPublicConfig(): PublicChallengeConfig {
-  return PUBLIC_CHALLENGE_CONFIG;
-}
-
 export function resetChallengeSessions() {
-  sessions.clear();
+  // Sessions are persisted in the database now.
 }
 
-export function startChallengeSession(): ChallengeStartResponse {
-  const rounds = cloneRounds();
-  const sessionId = crypto.randomUUID();
+export function getPublicConfig(input: { db?: Database.Database } = {}): PublicChallengeConfig {
+  return toPublicConfig(input.db);
+}
 
-  const session: ChallengeSession = {
-    sessionId,
-    rounds,
-    currentRoundIndex: 0,
-    correctCount: 0,
-    mistakeCount: 0,
-  };
-
-  sessions.set(sessionId, session);
+export function startChallengeSession(input: { db?: Database.Database } = {}): ChallengeStartResponse {
+  const config = toPublicConfig(input.db);
+  const roundPlan = generateChallengeRounds({ db: input.db, totalRounds: config.totalRounds });
+  const session = createChallengeSession({ db: input.db, roundPlan });
 
   return {
-    ...PUBLIC_CHALLENGE_CONFIG,
-    sessionId,
+    ...config,
+    sessionId: session.id,
     currentRoundIndex: 1,
-    round: toPublicRound(rounds[0]),
+    round: toPublicRound(roundPlan[0]),
   };
 }
 
-export function submitChallengeAnswer(input: ChallengeAnswerRequest): ChallengeAnswerResponse {
-  const session = sessions.get(input.sessionId);
+export function submitChallengeAnswer(
+  input: ChallengeAnswerRequest,
+  options: { db?: Database.Database } = {},
+): ChallengeAnswerResponse {
+  const config = toPublicConfig(options.db);
+  const session = getChallengeSession({ db: options.db, id: input.sessionId });
 
-  if (!session) {
+  if (!session || session.status !== 'active') {
     return expiredResponse();
   }
 
-  const round = session.rounds[session.currentRoundIndex];
+  const round = session.roundPlan[session.currentRoundIndex];
 
   if (!round || round.roundId !== input.roundId) {
-    sessions.delete(input.sessionId);
+    saveChallengeSession({
+      db: options.db,
+      session: {
+        ...session,
+        status: 'expired',
+      },
+    });
     return expiredResponse();
   }
 
@@ -108,37 +118,60 @@ export function submitChallengeAnswer(input: ChallengeAnswerRequest): ChallengeA
   }
 
   const outcome = getChallengeOutcome(
-    PUBLIC_CHALLENGE_CONFIG.totalRounds,
-    PUBLIC_CHALLENGE_CONFIG.requiredPassCount,
+    config.totalRounds,
+    config.requiredPassCount,
     session.correctCount,
     session.mistakeCount,
   );
 
   if (outcome === 'passed') {
-    sessions.delete(input.sessionId);
-    return passResponse(session);
+    saveChallengeSession({
+      db: options.db,
+      session: {
+        ...session,
+        status: 'passed',
+      },
+    });
+    return passResponse(session, config);
   }
 
   if (outcome === 'failed') {
-    sessions.delete(input.sessionId);
+    saveChallengeSession({
+      db: options.db,
+      session: {
+        ...session,
+        status: 'failed',
+      },
+    });
     return failResponse(session);
   }
 
   session.currentRoundIndex += 1;
-  const nextRound = session.rounds[session.currentRoundIndex];
+  const nextRound = session.roundPlan[session.currentRoundIndex];
 
   if (!nextRound) {
-    sessions.delete(input.sessionId);
+    saveChallengeSession({
+      db: options.db,
+      session: {
+        ...session,
+        status: 'failed',
+      },
+    });
     return failResponse(session);
   }
+
+  saveChallengeSession({
+    db: options.db,
+    session,
+  });
 
   return {
     status: 'continue',
     correctCount: session.correctCount,
     mistakeCount: session.mistakeCount,
     remainingMistakesBeforeFailure: getRemainingMistakesBeforeFailure(
-      PUBLIC_CHALLENGE_CONFIG.totalRounds,
-      PUBLIC_CHALLENGE_CONFIG.requiredPassCount,
+      config.totalRounds,
+      config.requiredPassCount,
       session.mistakeCount,
     ),
     currentRoundIndex: session.currentRoundIndex + 1,
