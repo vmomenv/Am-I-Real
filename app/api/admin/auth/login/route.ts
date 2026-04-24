@@ -2,14 +2,33 @@ import { NextResponse } from 'next/server';
 
 import { authenticateAdmin } from '@/src/server/admin/auth-service';
 import {
+  clearAdminLoginThrottle,
+  getAdminLoginThrottleStatus,
+  recordFailedAdminLogin,
+} from '@/src/server/admin/login-throttle';
+import {
   createAdminSessionCookieValue,
   getAdminSessionCookieOptions,
 } from '@/src/server/admin/session-cookie';
+
+function getClientIpAddress(request: Request) {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0]?.trim() || 'unknown';
+  }
+
+  return request.headers.get('x-real-ip') ?? 'unknown';
+}
 
 export async function POST(request: Request) {
   const payload = (await request.json()) as {
     username?: string;
     password?: string;
+  };
+  const throttleIdentity = {
+    ipAddress: getClientIpAddress(request),
+    username: payload.username?.trim() ?? '',
   };
 
   if (!payload.username || !payload.password) {
@@ -22,20 +41,38 @@ export async function POST(request: Request) {
     );
   }
 
+  const throttleStatus = getAdminLoginThrottleStatus(throttleIdentity);
+
+  if (throttleStatus.isBlocked) {
+    return NextResponse.json(
+      {
+        code: 'TOO_MANY_ATTEMPTS',
+        message: 'Too many failed login attempts. Please try again later.',
+      },
+      { status: 429 },
+    );
+  }
+
   const adminUser = await authenticateAdmin({
     username: payload.username,
     password: payload.password,
   });
 
   if (!adminUser) {
+    const updatedThrottleStatus = recordFailedAdminLogin(throttleIdentity);
+
     return NextResponse.json(
       {
-        code: 'UNAUTHORIZED',
-        message: 'Invalid username or password.',
+        code: updatedThrottleStatus.isBlocked ? 'TOO_MANY_ATTEMPTS' : 'UNAUTHORIZED',
+        message: updatedThrottleStatus.isBlocked
+          ? 'Too many failed login attempts. Please try again later.'
+          : 'Invalid username or password.',
       },
-      { status: 401 },
+      { status: updatedThrottleStatus.isBlocked ? 429 : 401 },
     );
   }
+
+  clearAdminLoginThrottle(throttleIdentity);
 
   const response = NextResponse.json({
     authenticated: true,

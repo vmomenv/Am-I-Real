@@ -72,6 +72,7 @@ export function AdminLoginForm() {
 
           setPassword('');
           setSessionState(payload as SessionState);
+          router.push('/admin');
           router.refresh();
         })
         .catch(() => {
