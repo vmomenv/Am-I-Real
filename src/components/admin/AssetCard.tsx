@@ -23,31 +23,34 @@ export function AssetCard({ asset }: AssetCardProps) {
               : 'border-slate-700 bg-slate-900 text-slate-400'
           }`}
         >
-          {asset.isActive ? 'Active' : 'Inactive'}
+          {asset.isActive ? '已启用' : '已停用'}
         </span>
       </div>
 
       <div className="mt-4 rounded-xl border border-dashed border-slate-800 bg-slate-900/60 px-3 py-6 text-center text-xs uppercase tracking-[0.25em] text-slate-500">
-        {asset.kind} asset preview
+        {asset.kind === 'ai' ? 'AI 图片预览' : asset.kind === 'real' ? '真人图片预览' : '音频资源预览'}
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-400">
         <div>
-          <dt className="uppercase tracking-[0.2em] text-slate-600">Uploaded</dt>
+          <dt className="uppercase tracking-[0.2em] text-slate-600">上传时间</dt>
           <dd className="mt-1 text-slate-200">{formatTimestamp(asset.createdAt)}</dd>
         </div>
         <div>
-          <dt className="uppercase tracking-[0.2em] text-slate-600">Size</dt>
+          <dt className="uppercase tracking-[0.2em] text-slate-600">文件大小</dt>
           <dd className="mt-1 text-slate-200">{Math.max(1, Math.round(asset.fileSize / 1024))} KB</dd>
         </div>
       </dl>
 
-      <div className="mt-4 flex gap-2 text-xs font-medium">
+      <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
         <button className="cursor-pointer rounded-lg border border-slate-700 px-3 py-2 text-slate-200 transition hover:border-slate-500 hover:text-white" type="button">
-          {asset.isActive ? 'Disable' : 'Enable'}
+          重命名
         </button>
-        <button className="cursor-pointer rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-slate-400 transition hover:border-slate-700 hover:text-slate-200" type="button">
-          Archive
+        <button className="cursor-pointer rounded-lg border border-slate-700 px-3 py-2 text-slate-200 transition hover:border-slate-500 hover:text-white" type="button">
+          {asset.isActive ? '停用' : '启用'}
+        </button>
+        <button className="cursor-pointer rounded-lg border border-rose-900/70 bg-rose-950/40 px-3 py-2 text-rose-200 transition hover:border-rose-700 hover:text-white" type="button">
+          删除
         </button>
       </div>
     </article>
