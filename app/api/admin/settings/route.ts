@@ -27,7 +27,7 @@ export function GET(request: Request) {
   return NextResponse.json({ settings: getSiteSettings() });
 }
 
-export async function PATCH(request: Request) {
+export async function PUT(request: Request) {
   const unauthorizedResponse = requireAdminSession(request);
 
   if (unauthorizedResponse) {

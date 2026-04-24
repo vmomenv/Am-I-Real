@@ -78,8 +78,13 @@ describe('challenge-service', () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);
 
-    insertAsset(db, { id: 'real-1', kind: 'real', filePath: 'uploads/real/real-1.png' });
-    insertAsset(db, { id: 'real-2', kind: 'real', filePath: 'uploads/real/real-2.png' });
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
 
     for (let index = 0; index < 8; index += 1) {
       insertAsset(db, {
@@ -113,6 +118,11 @@ describe('challenge-service', () => {
     expect(persisted.correctCount).toBe(0);
     expect(persisted.mistakeCount).toBe(0);
     expect(JSON.parse(persisted.roundPlanJson)).toHaveLength(10);
+    expect(
+      new Set(
+        (JSON.parse(persisted.roundPlanJson) as InternalRound[]).map((round) => round.correctOptionId),
+      ).size,
+    ).toBe(10);
 
     db.close();
   });
@@ -121,7 +131,13 @@ describe('challenge-service', () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);
 
-    insertAsset(db, { id: 'real-1', kind: 'real', filePath: 'uploads/real/real-1.png' });
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
 
     for (let index = 0; index < 8; index += 1) {
       insertAsset(db, {
@@ -180,8 +196,13 @@ describe('challenge-service', () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);
 
-    insertAsset(db, { id: 'real-1', kind: 'real', filePath: 'uploads/real/real-1.png' });
-    insertAsset(db, { id: 'real-2', kind: 'real', filePath: 'uploads/real/real-2.png' });
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
 
     for (let index = 0; index < 8; index += 1) {
       insertAsset(db, {

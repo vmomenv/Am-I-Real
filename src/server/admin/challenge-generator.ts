@@ -34,6 +34,18 @@ function listActiveAssets(db: Database.Database, kind: 'ai' | 'real') {
     .all(kind) as AssetRow[];
 }
 
+function assertPoolSizes(realAssets: AssetRow[], aiAssets: AssetRow[], totalRounds: number) {
+  if (realAssets.length < totalRounds) {
+    throw new ChallengeGeneratorError(
+      `At least ${totalRounds} active real assets are required to build a session.`,
+    );
+  }
+
+  if (aiAssets.length < 8) {
+    throw new ChallengeGeneratorError('At least 8 active ai assets are required to build a round.');
+  }
+}
+
 function takeStableAiWindow(aiAssets: AssetRow[], roundIndex: number) {
   return Array.from({ length: 8 }, (_, offset) => aiAssets[(roundIndex + offset) % aiAssets.length]);
 }
@@ -42,17 +54,15 @@ function toPublicAssetUrl(filePath: string) {
   return `/${filePath}`;
 }
 
-export function generateChallengeRounds(input: { db?: Database.Database; totalRounds: number }) {
+export function createChallengePlan(input: { db?: Database.Database; totalRounds: number }) {
   const db = getReadyDatabase(input.db);
   const realAssets = listActiveAssets(db, 'real');
   const aiAssets = listActiveAssets(db, 'ai');
 
-  if (realAssets.length < 1 || aiAssets.length < 8) {
-    throw new ChallengeGeneratorError('At least 1 active real asset and 8 active ai assets are required.');
-  }
+  assertPoolSizes(realAssets, aiAssets, input.totalRounds);
 
   return Array.from({ length: input.totalRounds }, (_, roundIndex) => {
-    const realAsset = realAssets[roundIndex % realAssets.length];
+    const realAsset = realAssets[roundIndex];
     const aiWindow = takeStableAiWindow(aiAssets, roundIndex);
     const realPosition = REAL_POSITIONS[roundIndex % REAL_POSITIONS.length];
     const options = aiWindow.map((asset, optionIndex) => ({
@@ -74,4 +84,8 @@ export function generateChallengeRounds(input: { db?: Database.Database; totalRo
       options,
     } satisfies InternalRound;
   });
+}
+
+export function generateChallengeRounds(input: { db?: Database.Database; totalRounds: number }) {
+  return createChallengePlan(input);
 }

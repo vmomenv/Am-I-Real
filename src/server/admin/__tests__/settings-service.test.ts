@@ -113,6 +113,37 @@ describe('settings-service', () => {
       }),
     ).toThrowError(
       expect.objectContaining({
+          code: 'INVALID_SETTINGS',
+        }),
+      );
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
+
+    for (let index = 0; index < 7; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
+    expect(() =>
+      updateSiteSettings({
+        db,
+        displaySiteName: 'Groundflare',
+        successRedirectUrl: 'https://www.spark-app.store',
+        audioAssetId: null,
+        totalRounds: 10,
+        requiredPassCount: 7,
+      }),
+    ).toThrowError(
+      expect.objectContaining({
         code: 'INVALID_SETTINGS',
       }),
     );
@@ -123,6 +154,23 @@ describe('settings-service', () => {
   it('stores validated settings updates and resolves uploaded audio asset urls', async () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
+
+    for (let index = 0; index < 8; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
     insertAsset(db, {
       id: 'audio-active',
       kind: 'audio',

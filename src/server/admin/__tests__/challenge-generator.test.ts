@@ -37,11 +37,11 @@ describe('challenge-generator', () => {
     await rm(tempDirectory, { recursive: true, force: true });
   });
 
-  it('builds a stable 10-round plan with exactly 1 real asset and 8 ai assets per round', async () => {
+  it('builds a stable 10-round plan with unique real assets and exactly 1 real asset plus 8 ai assets per round', async () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);
 
-    for (let index = 0; index < 3; index += 1) {
+    for (let index = 0; index < 10; index += 1) {
       insertAsset(db, {
         id: `real-${index + 1}`,
         kind: 'real',
@@ -64,6 +64,7 @@ describe('challenge-generator', () => {
 
     expect(firstPlan).toEqual(secondPlan);
     expect(firstPlan).toHaveLength(10);
+    expect(new Set(firstPlan.map((round) => round.correctOptionId)).size).toBe(10);
 
     for (const round of firstPlan) {
       expect(round.options).toHaveLength(9);
@@ -75,9 +76,17 @@ describe('challenge-generator', () => {
     db.close();
   });
 
-  it('ignores inactive assets and rejects pools that cannot form a round', async () => {
+  it('ignores inactive assets and rejects sessions without enough unique real assets', async () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);
+
+    for (let index = 0; index < 9; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
 
     insertAsset(db, {
       id: 'real-inactive',
@@ -85,6 +94,35 @@ describe('challenge-generator', () => {
       filePath: 'uploads/real/real-inactive.png',
       isActive: false,
     });
+
+    for (let index = 0; index < 8; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
+    const { ChallengeGeneratorError, generateChallengeRounds } = await import(
+      '@/src/server/admin/challenge-generator'
+    );
+
+    expect(() => generateChallengeRounds({ db, totalRounds: 10 })).toThrowError(ChallengeGeneratorError);
+
+    db.close();
+  });
+
+  it('rejects pools that cannot form a round because they have fewer than 8 active ai assets', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
 
     for (let index = 0; index < 7; index += 1) {
       insertAsset(db, {
@@ -98,9 +136,7 @@ describe('challenge-generator', () => {
       '@/src/server/admin/challenge-generator'
     );
 
-    expect(() => generateChallengeRounds({ db, totalRounds: 10 })).toThrowError(
-      ChallengeGeneratorError,
-    );
+    expect(() => generateChallengeRounds({ db, totalRounds: 10 })).toThrowError(ChallengeGeneratorError);
 
     db.close();
   });

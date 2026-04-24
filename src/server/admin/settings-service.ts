@@ -22,6 +22,11 @@ type AudioAssetRow = {
   isActive: number;
 };
 
+type PoolCounts = {
+  realCount: number;
+  aiCount: number;
+};
+
 export type SiteSettings = SiteSettingsRow & {
   audioUrl: string;
 };
@@ -77,6 +82,17 @@ function getAudioAsset(db: Database.Database, audioAssetId: string | null) {
     .get(audioAssetId) as AudioAssetRow | undefined;
 }
 
+function getActivePoolCounts(db: Database.Database): PoolCounts {
+  return db
+    .prepare(
+      `SELECT
+         SUM(CASE WHEN kind = 'real' AND isActive = 1 THEN 1 ELSE 0 END) AS realCount,
+         SUM(CASE WHEN kind = 'ai' AND isActive = 1 THEN 1 ELSE 0 END) AS aiCount
+       FROM image_assets`,
+    )
+    .get() as PoolCounts;
+}
+
 function requireValidUrl(value: string) {
   try {
     const url = new URL(value);
@@ -116,6 +132,20 @@ function validateSettings(db: Database.Database, input: UpdateSiteSettingsInput)
       'Audio asset must reference an active uploaded audio file.',
       400,
     );
+  }
+
+  const poolCounts = getActivePoolCounts(db);
+
+  if (poolCounts.realCount < input.totalRounds) {
+    throw new SettingsServiceError(
+      'INVALID_SETTINGS',
+      `At least ${input.totalRounds} active real assets are required.`,
+      400,
+    );
+  }
+
+  if (poolCounts.aiCount < 8) {
+    throw new SettingsServiceError('INVALID_SETTINGS', 'At least 8 active ai assets are required.', 400);
   }
 }
 

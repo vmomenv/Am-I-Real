@@ -10,7 +10,7 @@ import {
 } from '@/src/lib/challenge-rules';
 import type Database from 'better-sqlite3';
 
-import { generateChallengeRounds } from '@/src/server/admin/challenge-generator';
+import { createChallengePlan } from '@/src/server/admin/challenge-generator';
 import {
   createChallengeSession,
   getChallengeSession,
@@ -76,7 +76,7 @@ export function getPublicConfig(input: { db?: Database.Database } = {}): PublicC
 
 export function startChallengeSession(input: { db?: Database.Database } = {}): ChallengeStartResponse {
   const config = toPublicConfig(input.db);
-  const roundPlan = generateChallengeRounds({ db: input.db, totalRounds: config.totalRounds });
+  const roundPlan = createChallengePlan({ db: input.db, totalRounds: config.totalRounds });
   const session = createChallengeSession({ db: input.db, roundPlan });
 
   return {
