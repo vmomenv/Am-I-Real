@@ -52,6 +52,7 @@ describe('AdminDualImageDesk', () => {
     expect(screen.getByRole('heading', { name: 'AI Image Pool' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Real Photo Pool' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Settings Rail' })).toBeInTheDocument();
+    expect(screen.getByText('operator online')).toBeInTheDocument();
     expect(screen.getByText('displaySiteName')).toBeInTheDocument();
     expect(screen.getByText('successRedirectUrl')).toBeInTheDocument();
     expect(screen.getByText('audioAssetId')).toBeInTheDocument();
