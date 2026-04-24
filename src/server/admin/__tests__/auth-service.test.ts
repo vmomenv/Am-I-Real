@@ -53,4 +53,28 @@ describe('auth-service', () => {
 
     db.close();
   });
+
+  it('seeds an admin user from username and password input', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    const { seedAdminUser, verifyAdminCredentials } = await import(
+      '@/src/server/admin/auth-service'
+    );
+
+    seedAdminUser(db, 'seeded-admin', 'plan-aligned-password');
+
+    await expect(
+      verifyAdminCredentials(db, {
+        username: 'seeded-admin',
+        password: 'plan-aligned-password',
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        username: 'seeded-admin',
+      }),
+    );
+
+    db.close();
+  });
 });
