@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "admin:seed": "tsx scripts/seed-admin.ts",
     "db:bootstrap": "tsx src/server/db/bootstrap.ts",
     "test": "vitest run"
   },
