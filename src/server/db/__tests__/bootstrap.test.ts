@@ -65,7 +65,7 @@ describe('bootstrapDatabase', () => {
     db.close();
   });
 
-  it('reuses an existing inactive site settings row instead of inserting a default duplicate', () => {
+  it('reuses an existing site settings row instead of inserting a default duplicate', () => {
     const db = createDatabase(join(tempDirectory, 'nested', 'groundflare.sqlite'));
 
     db.exec(`
@@ -76,7 +76,6 @@ describe('bootstrapDatabase', () => {
         audioAssetId TEXT,
         totalRounds INTEGER NOT NULL,
         requiredPassCount INTEGER NOT NULL,
-        isActive INTEGER NOT NULL DEFAULT 1,
         updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -88,17 +87,15 @@ describe('bootstrapDatabase', () => {
         successRedirectUrl,
         audioAssetId,
         totalRounds,
-        requiredPassCount,
-        isActive
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        requiredPassCount
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(
-      'inactive-settings',
+      'existing-settings',
       'existing.example',
       'https://existing.example',
       null,
       3,
       2,
-      0,
     );
 
     bootstrapDatabase(db);

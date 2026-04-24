@@ -42,7 +42,6 @@ export function bootstrapDatabase(db: Database.Database) {
       audioAssetId TEXT,
       totalRounds INTEGER NOT NULL,
       requiredPassCount INTEGER NOT NULL,
-      isActive INTEGER NOT NULL DEFAULT 1,
       updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -70,22 +69,19 @@ export function bootstrapDatabase(db: Database.Database) {
         successRedirectUrl,
         audioAssetId,
         totalRounds,
-        requiredPassCount,
-        isActive
+        requiredPassCount
       ) VALUES (
         @id,
         @displaySiteName,
         @successRedirectUrl,
         @audioAssetId,
         @totalRounds,
-        @requiredPassCount,
-        @isActive
+        @requiredPassCount
       )`,
     ).run({
       id: 'default',
       ...DEFAULT_SITE_SETTINGS,
       audioAssetId: null,
-      isActive: 1,
     });
   }
 }
