@@ -127,6 +127,67 @@ describe('challenge api routes', () => {
       );
   });
 
+  it('returns a structured 400 response for malformed answer payloads without mutating the session', async () => {
+    const [, { POST: startChallenge }, { POST: answerChallenge }] = await loadChallengeModules();
+    const startResponse = await startChallenge();
+    const started = await startResponse.json();
+
+    const malformedJsonResponse = await answerChallenge(
+      new Request('http://localhost/api/challenge/answer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: '{"sessionId":',
+      }),
+    );
+
+    expect(malformedJsonResponse.status).toBe(400);
+    await expect(malformedJsonResponse.json()).resolves.toEqual({
+      code: 'INVALID_REQUEST',
+      message: 'Invalid challenge answer payload.',
+    });
+
+    const wrongShapeResponse = await answerChallenge(
+      new Request('http://localhost/api/challenge/answer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: started.sessionId,
+          roundId: 123,
+          selectedOptionId: null,
+        }),
+      }),
+    );
+
+    expect(wrongShapeResponse.status).toBe(400);
+    await expect(wrongShapeResponse.json()).resolves.toEqual({
+      code: 'INVALID_REQUEST',
+      message: 'Invalid challenge answer payload.',
+    });
+
+    const db = createDatabase(dbPath);
+    const storedSession = db
+      .prepare('SELECT status, currentRoundIndex, correctCount, mistakeCount FROM challenge_sessions WHERE id = ?')
+      .get(started.sessionId) as {
+      status: string;
+      currentRoundIndex: number;
+      correctCount: number;
+      mistakeCount: number;
+    };
+
+    expect(storedSession).toEqual({
+      status: 'active',
+      currentRoundIndex: 0,
+      correctCount: 0,
+      mistakeCount: 0,
+    });
+
+    db.close();
+  });
+
   it('returns a controlled failure when the active pool cannot satisfy current settings', async () => {
     const [, { POST: startChallenge }] = await loadChallengeModules();
     const db = createDatabase(dbPath);
