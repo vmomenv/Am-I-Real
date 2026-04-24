@@ -23,6 +23,10 @@ describe('bootstrapDatabase', () => {
 
     bootstrapDatabase(db);
 
+    const siteSettingsColumns = db
+      .prepare("PRAGMA table_info('site_settings')")
+      .all() as Array<{ name: string }>;
+
     const tables = db
       .prepare(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('admin_users', 'image_assets', 'site_settings', 'challenge_sessions') ORDER BY name",
@@ -35,6 +39,8 @@ describe('bootstrapDatabase', () => {
       'image_assets',
       'site_settings',
     ]);
+
+    expect(siteSettingsColumns.map((column) => column.name)).not.toContain('isActive');
 
     const settings = db
       .prepare(
