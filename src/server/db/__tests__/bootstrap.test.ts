@@ -58,4 +58,51 @@ describe('bootstrapDatabase', () => {
 
     db.close();
   });
+
+  it('reuses an existing inactive site settings row instead of inserting a default duplicate', () => {
+    const db = createDatabase(join(tempDirectory, 'nested', 'groundflare.sqlite'));
+
+    db.exec(`
+      CREATE TABLE site_settings (
+        id TEXT PRIMARY KEY,
+        displaySiteName TEXT NOT NULL,
+        successRedirectUrl TEXT NOT NULL,
+        audioAssetId TEXT,
+        totalRounds INTEGER NOT NULL,
+        requiredPassCount INTEGER NOT NULL,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    db.prepare(
+      `INSERT INTO site_settings (
+        id,
+        displaySiteName,
+        successRedirectUrl,
+        audioAssetId,
+        totalRounds,
+        requiredPassCount,
+        isActive
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'inactive-settings',
+      'existing.example',
+      'https://existing.example',
+      null,
+      3,
+      2,
+      0,
+    );
+
+    bootstrapDatabase(db);
+
+    const settingsCount = db
+      .prepare('SELECT COUNT(*) AS count FROM site_settings')
+      .get() as { count: number };
+
+    expect(settingsCount.count).toBe(1);
+
+    db.close();
+  });
 });
