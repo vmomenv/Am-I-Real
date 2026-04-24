@@ -21,8 +21,30 @@ function getClientIpAddress(request: Request) {
   return request.headers.get('x-real-ip') ?? 'unknown';
 }
 
+function getInvalidPayloadResponse() {
+  return NextResponse.json(
+    {
+      code: 'INVALID_REQUEST',
+      message: 'Invalid login payload.',
+    },
+    { status: 400 },
+  );
+}
+
 export async function POST(request: Request) {
-  const payload = (await request.json()) as {
+  let parsedPayload: unknown;
+
+  try {
+    parsedPayload = await request.json();
+  } catch {
+    return getInvalidPayloadResponse();
+  }
+
+  if (!parsedPayload || typeof parsedPayload !== 'object') {
+    return getInvalidPayloadResponse();
+  }
+
+  const payload = parsedPayload as {
     username?: string;
     password?: string;
   };
