@@ -124,6 +124,22 @@ describe('challenge api routes', () => {
         mistakeCount: 0,
         currentRoundIndex: 2,
       }),
-    );
+      );
+  });
+
+  it('returns a controlled failure when the active pool cannot satisfy current settings', async () => {
+    const [, { POST: startChallenge }] = await loadChallengeModules();
+    const db = createDatabase(dbPath);
+
+    db.prepare("UPDATE image_assets SET isActive = 0 WHERE kind = 'real' AND id = ?").run('real-10');
+    db.close();
+
+    const response = await startChallenge();
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      code: 'INVALID_CHALLENGE_POOL',
+      message: 'The active challenge asset pool does not satisfy current site settings.',
+    });
   });
 });

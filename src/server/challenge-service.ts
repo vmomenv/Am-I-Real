@@ -10,7 +10,7 @@ import {
 } from '@/src/lib/challenge-rules';
 import type Database from 'better-sqlite3';
 
-import { createChallengePlan } from '@/src/server/admin/challenge-generator';
+import { ChallengeGeneratorError, createChallengePlan } from '@/src/server/admin/challenge-generator';
 import {
   type ChallengeSessionConfig,
   createChallengeSession,
@@ -20,6 +20,17 @@ import {
 import { getSiteSettings } from '@/src/server/admin/settings-service';
 
 const BRAND_NAME = 'Groundflare';
+
+export class ChallengeServiceError extends Error {
+  constructor(
+    readonly code: 'INVALID_CHALLENGE_POOL',
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'ChallengeServiceError';
+  }
+}
 
 function toPublicRound(round: { roundId: string; prompt: string; options: Array<{ id: string; imageUrl: string; alt: string }> }) {
   return {
@@ -88,11 +99,26 @@ export function getPublicConfig(input: { db?: Database.Database } = {}): PublicC
 
 export function startChallengeSession(input: { db?: Database.Database; rng?: () => number } = {}): ChallengeStartResponse {
   const config = toPublicConfig(input.db);
-  const roundPlan = createChallengePlan({
-    db: input.db,
-    totalRounds: config.totalRounds,
-    rng: input.rng,
-  });
+  let roundPlan;
+
+  try {
+    roundPlan = createChallengePlan({
+      db: input.db,
+      totalRounds: config.totalRounds,
+      rng: input.rng,
+    });
+  } catch (error) {
+    if (error instanceof ChallengeGeneratorError) {
+      throw new ChallengeServiceError(
+        'INVALID_CHALLENGE_POOL',
+        'The active challenge asset pool does not satisfy current site settings.',
+        409,
+      );
+    }
+
+    throw error;
+  }
+
   const session = createChallengeSession({
     db: input.db,
     roundPlan,

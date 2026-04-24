@@ -68,6 +68,24 @@ describe('assets-service', () => {
       '@/src/server/admin/assets-service'
     );
 
+    for (let index = 0; index < 10; index += 1) {
+      await uploadAsset({
+        db,
+        uploadsDir: join(tempDirectory, 'uploads'),
+        kind: 'real',
+        file: new File([`real-${index}`], `support-real-${index + 1}.png`, { type: 'image/png' }),
+      });
+    }
+
+    for (let index = 0; index < 8; index += 1) {
+      await uploadAsset({
+        db,
+        uploadsDir: join(tempDirectory, 'uploads'),
+        kind: 'ai',
+        file: new File([`support-ai-${index}`], `support-ai-${index + 1}.png`, { type: 'image/png' }),
+      });
+    }
+
     const uploadedAiAsset = await uploadAsset({
       db,
       uploadsDir: join(tempDirectory, 'uploads'),
@@ -99,7 +117,7 @@ describe('assets-service', () => {
       kind: 'real',
     });
 
-    expect(realAssets).toEqual([
+    expect(realAssets).toContainEqual(
       expect.objectContaining({
         id: uploadedRealAsset.id,
         kind: 'real',
@@ -107,7 +125,7 @@ describe('assets-service', () => {
         mimeType: 'image/jpeg',
         isActive: true,
       }),
-    ]);
+    );
 
     const searchResults = listAssets({
       db,
@@ -244,6 +262,74 @@ describe('assets-service', () => {
         isActive: true,
       }),
     ]);
+
+    db.close();
+  });
+
+  it('rejects deactivating or removing real/ai assets when that would violate the active challenge pool', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    const { removeAsset, updateAsset, uploadAsset } = await import('@/src/server/admin/assets-service');
+
+    const realAssets = [] as Array<{ id: string }>;
+
+    for (let index = 0; index < 10; index += 1) {
+      realAssets.push(
+        await uploadAsset({
+          db,
+          uploadsDir: join(tempDirectory, 'uploads'),
+          kind: 'real',
+          file: new File([`real-${index}`], `real-${index + 1}.png`, { type: 'image/png' }),
+        }),
+      );
+    }
+
+    const aiAssets = [] as Array<{ id: string }>;
+
+    for (let index = 0; index < 8; index += 1) {
+      aiAssets.push(
+        await uploadAsset({
+          db,
+          uploadsDir: join(tempDirectory, 'uploads'),
+          kind: 'ai',
+          file: new File([`ai-${index}`], `ai-${index + 1}.png`, { type: 'image/png' }),
+        }),
+      );
+    }
+
+    expect(() =>
+      updateAsset({
+        db,
+        id: realAssets[0].id,
+        isActive: false,
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'ASSET_IN_USE',
+      }),
+    );
+
+    expect(() =>
+      updateAsset({
+        db,
+        id: aiAssets[0].id,
+        isActive: false,
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'ASSET_IN_USE',
+      }),
+    );
+
+    await expect(
+      removeAsset({
+        db,
+        id: aiAssets[1].id,
+      }),
+    ).rejects.toMatchObject({
+      code: 'ASSET_IN_USE',
+    });
 
     db.close();
   });

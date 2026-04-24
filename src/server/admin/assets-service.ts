@@ -23,6 +23,15 @@ type AssetRow = {
   updatedAt: string;
 };
 
+type SiteSettingsRow = {
+  totalRounds: number;
+};
+
+type PoolCountsRow = {
+  realCount: number;
+  aiCount: number;
+};
+
 export type Asset = Omit<AssetRow, 'isActive'> & {
   isActive: boolean;
 };
@@ -118,6 +127,54 @@ function ensureAssetIsNotReferencedBySettings(db: Database.Database, assetId: st
   }
 }
 
+function getCurrentSiteSettings(db: Database.Database) {
+  return db.prepare('SELECT totalRounds FROM site_settings LIMIT 1').get() as SiteSettingsRow | undefined;
+}
+
+function getActivePoolCounts(db: Database.Database, excludedAssetId?: string) {
+  const exclusionClause = excludedAssetId ? 'AND id != @excludedAssetId' : '';
+
+  return db
+    .prepare(
+      `SELECT
+         SUM(CASE WHEN kind = 'real' AND isActive = 1 THEN 1 ELSE 0 END) AS realCount,
+         SUM(CASE WHEN kind = 'ai' AND isActive = 1 THEN 1 ELSE 0 END) AS aiCount
+       FROM image_assets
+       WHERE 1 = 1 ${exclusionClause}`,
+    )
+    .get(excludedAssetId ? { excludedAssetId } : {}) as PoolCountsRow;
+}
+
+function ensureAssetDoesNotBreakChallengePool(db: Database.Database, asset: AssetRow, nextIsActive: boolean) {
+  if (nextIsActive || (asset.kind !== 'real' && asset.kind !== 'ai')) {
+    return;
+  }
+
+  const settings = getCurrentSiteSettings(db);
+
+  if (!settings) {
+    return;
+  }
+
+  const poolCounts = getActivePoolCounts(db, asset.id);
+
+  if (asset.kind === 'real' && poolCounts.realCount < settings.totalRounds) {
+    throw new AssetServiceError(
+      'ASSET_IN_USE',
+      'Asset is required to satisfy the active challenge pool.',
+      409,
+    );
+  }
+
+  if (asset.kind === 'ai' && poolCounts.aiCount < 8) {
+    throw new AssetServiceError(
+      'ASSET_IN_USE',
+      'Asset is required to satisfy the active challenge pool.',
+      409,
+    );
+  }
+}
+
 function validateMimeType(kind: AssetKind, file: File) {
   if (!ALLOWED_MIME_TYPES[kind].has(file.type)) {
     throw new AssetServiceError('INVALID_FILE_TYPE', 'Invalid file type for this asset kind.', 400);
@@ -209,6 +266,8 @@ export function updateAsset(input: UpdateAssetInput) {
   const db = getReadyDatabase(input.db);
 
   const asset = requireAsset(db, input.id);
+
+  ensureAssetDoesNotBreakChallengePool(db, asset, input.isActive);
 
   if (asset.kind === 'audio' && !input.isActive) {
     ensureAssetIsNotReferencedBySettings(db, input.id);
