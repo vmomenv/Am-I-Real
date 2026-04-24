@@ -13,6 +13,23 @@ export type AdminSession = AdminSessionIdentity & {
   expiresAt: number;
 };
 
+function isAdminSession(value: unknown): value is AdminSession {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const session = value as Partial<AdminSession>;
+
+  return (
+    typeof session.userId === 'string' &&
+    typeof session.username === 'string' &&
+    typeof session.issuedAt === 'number' &&
+    Number.isFinite(session.issuedAt) &&
+    typeof session.expiresAt === 'number' &&
+    Number.isFinite(session.expiresAt)
+  );
+}
+
 function getAdminSessionSecret() {
   if (process.env.ADMIN_SESSION_SECRET) {
     return process.env.ADMIN_SESSION_SECRET;
@@ -64,7 +81,17 @@ export function readAdminSessionCookieValue(cookieValue: string | undefined) {
     return null;
   }
 
-  const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as AdminSession;
+  let session: unknown;
+
+  try {
+    session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+
+  if (!isAdminSession(session)) {
+    return null;
+  }
 
   if (session.expiresAt <= Date.now()) {
     return null;

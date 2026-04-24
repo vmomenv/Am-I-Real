@@ -76,6 +76,9 @@ export function AdminLoginForm() {
     setErrorMessage(null);
 
     const response = await fetch('/api/admin/auth/logout', {
+      headers: {
+        Accept: 'application/json',
+      },
       method: 'POST',
     });
 

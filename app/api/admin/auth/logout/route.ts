@@ -5,8 +5,11 @@ import {
   getAdminSessionCookieOptions,
 } from '@/src/server/admin/session-cookie';
 
-export function POST() {
-  const response = NextResponse.json({ authenticated: false });
+export function POST(request: Request) {
+  const acceptsJson = request.headers.get('accept')?.includes('application/json');
+  const response = acceptsJson
+    ? NextResponse.json({ authenticated: false })
+    : NextResponse.redirect(new URL('/admin/login', request.url));
 
   response.cookies.set({
     ...getAdminSessionCookieOptions(),
