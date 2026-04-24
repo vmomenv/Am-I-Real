@@ -46,6 +46,19 @@ function assertPoolSizes(realAssets: AssetRow[], aiAssets: AssetRow[], totalRoun
   }
 }
 
+function shuffleAssets<T>(assets: T[], rng: () => number) {
+  const shuffled = [...assets];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    const current = shuffled[index];
+    shuffled[index] = shuffled[swapIndex];
+    shuffled[swapIndex] = current;
+  }
+
+  return shuffled;
+}
+
 function takeStableAiWindow(aiAssets: AssetRow[], roundIndex: number) {
   return Array.from({ length: 8 }, (_, offset) => aiAssets[(roundIndex + offset) % aiAssets.length]);
 }
@@ -54,10 +67,15 @@ function toPublicAssetUrl(filePath: string) {
   return `/${filePath}`;
 }
 
-export function createChallengePlan(input: { db?: Database.Database; totalRounds: number }) {
+export function createChallengePlan(input: {
+  db?: Database.Database;
+  totalRounds: number;
+  rng?: () => number;
+}) {
   const db = getReadyDatabase(input.db);
-  const realAssets = listActiveAssets(db, 'real');
-  const aiAssets = listActiveAssets(db, 'ai');
+  const rng = input.rng ?? Math.random;
+  const realAssets = shuffleAssets(listActiveAssets(db, 'real'), rng);
+  const aiAssets = shuffleAssets(listActiveAssets(db, 'ai'), rng);
 
   assertPoolSizes(realAssets, aiAssets, input.totalRounds);
 

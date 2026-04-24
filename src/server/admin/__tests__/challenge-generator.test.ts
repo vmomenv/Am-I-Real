@@ -29,6 +29,16 @@ function insertAsset(
 describe('challenge-generator', () => {
   let tempDirectory: string;
 
+  function createSequenceRng(values: number[]) {
+    let index = 0;
+
+    return () => {
+      const value = values[index] ?? values[values.length - 1] ?? 0;
+      index += 1;
+      return value;
+    };
+  }
+
   beforeEach(async () => {
     tempDirectory = await mkdtemp(join(tmpdir(), 'groundflare-generator-'));
   });
@@ -37,7 +47,7 @@ describe('challenge-generator', () => {
     await rm(tempDirectory, { recursive: true, force: true });
   });
 
-  it('builds a stable 10-round plan with unique real assets and exactly 1 real asset plus 8 ai assets per round', async () => {
+  it('builds a valid per-session plan and allows different sessions to randomize differently', async () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);
 
@@ -57,20 +67,36 @@ describe('challenge-generator', () => {
       });
     }
 
-    const { generateChallengeRounds } = await import('@/src/server/admin/challenge-generator');
+    const { createChallengePlan } = await import('@/src/server/admin/challenge-generator');
 
-    const firstPlan = generateChallengeRounds({ db, totalRounds: 10 });
-    const secondPlan = generateChallengeRounds({ db, totalRounds: 10 });
+    const firstPlan = createChallengePlan({
+      db,
+      totalRounds: 10,
+      rng: createSequenceRng([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    });
+    const secondPlan = createChallengePlan({
+      db,
+      totalRounds: 10,
+      rng: createSequenceRng([
+        0.91, 0.82, 0.73, 0.64, 0.55, 0.46, 0.37, 0.28, 0.19, 0.1, 0.93, 0.84, 0.75, 0.66,
+        0.57, 0.48, 0.39, 0.3, 0.21, 0.12,
+      ]),
+    });
 
-    expect(firstPlan).toEqual(secondPlan);
     expect(firstPlan).toHaveLength(10);
+    expect(secondPlan).toHaveLength(10);
+    expect(firstPlan).not.toEqual(secondPlan);
     expect(new Set(firstPlan.map((round) => round.correctOptionId)).size).toBe(10);
+    expect(new Set(secondPlan.map((round) => round.correctOptionId)).size).toBe(10);
 
-    for (const round of firstPlan) {
-      expect(round.options).toHaveLength(9);
-      expect(round.options.filter((option) => option.id === round.correctOptionId)).toHaveLength(1);
-      expect(round.options.filter((option) => option.id.startsWith('real-'))).toHaveLength(1);
-      expect(round.options.filter((option) => option.id.startsWith('ai-'))).toHaveLength(8);
+    for (const plan of [firstPlan, secondPlan]) {
+      for (const round of plan) {
+        expect(round.options).toHaveLength(9);
+        expect(round.options.filter((option) => option.id === round.correctOptionId)).toHaveLength(1);
+        expect(round.options.filter((option) => option.id.startsWith('real-'))).toHaveLength(1);
+        expect(round.options.filter((option) => option.id.startsWith('ai-'))).toHaveLength(8);
+        expect(new Set(round.options.filter((option) => option.id.startsWith('ai-')).map((option) => option.id)).size).toBe(8);
+      }
     }
 
     db.close();

@@ -50,6 +50,16 @@ function getStoredRoundPlan(db: ReturnType<typeof createDatabase>, sessionId: st
 describe('challenge-service', () => {
   let tempDirectory: string;
 
+  function createSequenceRng(values: number[]) {
+    let index = 0;
+
+    return () => {
+      const value = values[index] ?? values[values.length - 1] ?? 0;
+      index += 1;
+      return value;
+    };
+  }
+
   beforeEach(async () => {
     tempDirectory = await mkdtemp(join(tmpdir(), 'groundflare-challenge-'));
   });
@@ -123,6 +133,64 @@ describe('challenge-service', () => {
         (JSON.parse(persisted.roundPlanJson) as InternalRound[]).map((round) => round.correctOptionId),
       ).size,
     ).toBe(10);
+
+    db.close();
+  });
+
+  it('persists each session snapshot after creation even when later sessions randomize differently', () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
+    const firstSession = startChallengeSession({
+      db,
+      rng: createSequenceRng([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    });
+    const firstPlanBefore = getStoredRoundPlan(db, firstSession.sessionId);
+
+    const secondSession = startChallengeSession({
+      db,
+      rng: createSequenceRng([
+        0.91, 0.82, 0.73, 0.64, 0.55, 0.46, 0.37, 0.28, 0.19, 0.1, 0.93, 0.84, 0.75, 0.66,
+        0.57, 0.48, 0.39, 0.3, 0.21, 0.12,
+      ]),
+    });
+    const firstPlanAfter = getStoredRoundPlan(db, firstSession.sessionId);
+    const secondPlan = getStoredRoundPlan(db, secondSession.sessionId);
+
+    expect(firstPlanAfter).toEqual(firstPlanBefore);
+    expect(secondPlan).not.toEqual(firstPlanBefore);
+
+    const continueResponse = submitChallengeAnswer(
+      {
+        sessionId: firstSession.sessionId,
+        roundId: firstSession.round.roundId,
+        selectedOptionId: firstPlanBefore[0].correctOptionId,
+      },
+      { db },
+    );
+
+    expect(continueResponse).toEqual(
+      expect.objectContaining({
+        status: 'continue',
+        correctCount: 1,
+      }),
+    );
 
     db.close();
   });

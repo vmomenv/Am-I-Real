@@ -74,9 +74,13 @@ export function getPublicConfig(input: { db?: Database.Database } = {}): PublicC
   return toPublicConfig(input.db);
 }
 
-export function startChallengeSession(input: { db?: Database.Database } = {}): ChallengeStartResponse {
+export function startChallengeSession(input: { db?: Database.Database; rng?: () => number } = {}): ChallengeStartResponse {
   const config = toPublicConfig(input.db);
-  const roundPlan = createChallengePlan({ db: input.db, totalRounds: config.totalRounds });
+  const roundPlan = createChallengePlan({
+    db: input.db,
+    totalRounds: config.totalRounds,
+    rng: input.rng,
+  });
   const session = createChallengeSession({ db: input.db, roundPlan });
 
   return {
