@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { AdminDualImageDesk } from '@/src/components/admin/AdminDualImageDesk';
 
 describe('AdminDualImageDesk', () => {
-  it('renders the AI and real asset columns with the current settings rail', () => {
+  it('renders the Chinese operations console header and editable configuration fields', () => {
     render(
       <AdminDualImageDesk
         aiAssets={[
@@ -49,14 +49,19 @@ describe('AdminDualImageDesk', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'AI Image Pool' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Real Photo Pool' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Settings Rail' })).toBeInTheDocument();
-    expect(screen.getByText('operator online')).toBeInTheDocument();
-    expect(screen.getByText('displaySiteName')).toBeInTheDocument();
-    expect(screen.getByText('successRedirectUrl')).toBeInTheDocument();
-    expect(screen.getByText('audioAssetId')).toBeInTheDocument();
-    expect(screen.getByText('totalRounds')).toBeInTheDocument();
-    expect(screen.getByText('requiredPassCount')).toBeInTheDocument();
+    expect(screen.getByText('当前管理员')).toBeInTheDocument();
+    expect(screen.getByText('最近保存时间')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '快速上传' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '退出登录' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'AI 图片池' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '真实图片池' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '站点配置' })).toBeInTheDocument();
+    expect(screen.getByLabelText('显示站点名')).toHaveValue('www.spark-app.store');
+    expect(screen.getByLabelText('成功跳转地址')).toHaveValue('https://www.spark-app.store');
+    expect(screen.getByLabelText('背景音乐')).toHaveValue('/1.mp3');
+    expect(screen.getByLabelText('总轮数')).toHaveValue(10);
+    expect(screen.getByLabelText('通过轮数')).toHaveValue(7);
+    expect(screen.getByRole('button', { name: '上传音频' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '保存配置' })).toBeInTheDocument();
   });
 });
