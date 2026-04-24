@@ -11,6 +11,16 @@ type SessionState = {
   };
 };
 
+function getErrorMessage(payload: unknown) {
+  if (!payload || typeof payload !== 'object' || !("message" in payload)) {
+    return null;
+  }
+
+  const { message } = payload as { message?: unknown };
+
+  return typeof message === 'string' ? message : null;
+}
+
 export function AdminLoginForm() {
   const router = useRouter();
   const [username, setUsername] = useState('admin');
@@ -51,14 +61,12 @@ export function AdminLoginForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
-      })
+        })
         .then(async (response) => {
-          const payload = (await response.json()) as
-            | SessionState
-            | { message?: string };
+          const payload = (await response.json()) as unknown;
 
           if (!response.ok) {
-            setErrorMessage(payload.message ?? 'Login failed.');
+            setErrorMessage(getErrorMessage(payload) ?? 'Login failed.');
             return;
           }
 
