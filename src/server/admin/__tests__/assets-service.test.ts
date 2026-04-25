@@ -7,6 +7,17 @@ import { join } from 'node:path';
 import { bootstrapDatabase } from '@/src/server/db/bootstrap';
 import { createDatabase } from '@/src/server/db/client';
 
+const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG_SIGNATURE = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
+
+function createPngFile(name: string, body = 'png-body') {
+  return new File([PNG_SIGNATURE, body], name, { type: 'image/png' });
+}
+
+function createJpegFile(name: string, body = 'jpeg-body') {
+  return new File([JPEG_SIGNATURE, body], name, { type: 'image/jpeg' });
+}
+
 describe('assets-service', () => {
   let tempDirectory: string;
 
@@ -51,7 +62,18 @@ describe('assets-service', () => {
         db,
         uploadsDir: join(tempDirectory, 'uploads'),
         kind: 'audio',
-        file: new File(['image-bytes'], 'bad.png', { type: 'image/png' }),
+        file: createPngFile('bad.png', 'image-bytes'),
+      }),
+    ).rejects.toMatchObject({
+      code: 'INVALID_FILE_TYPE',
+    });
+
+    await expect(
+      uploadAsset({
+        db,
+        uploadsDir: join(tempDirectory, 'uploads'),
+        kind: 'ai',
+        file: new File(['not-a-real-image'], 'looks-like-image.png', { type: 'image/png' }),
       }),
     ).rejects.toMatchObject({
       code: 'INVALID_FILE_TYPE',
@@ -73,7 +95,7 @@ describe('assets-service', () => {
         db,
         uploadsDir: join(tempDirectory, 'uploads'),
         kind: 'real',
-        file: new File([`real-${index}`], `support-real-${index + 1}.png`, { type: 'image/png' }),
+        file: createPngFile(`support-real-${index + 1}.png`, `real-${index}`),
       });
     }
 
@@ -82,7 +104,7 @@ describe('assets-service', () => {
         db,
         uploadsDir: join(tempDirectory, 'uploads'),
         kind: 'ai',
-        file: new File([`support-ai-${index}`], `support-ai-${index + 1}.png`, { type: 'image/png' }),
+        file: createPngFile(`support-ai-${index + 1}.png`, `support-ai-${index}`),
       });
     }
 
@@ -90,14 +112,14 @@ describe('assets-service', () => {
       db,
       uploadsDir: join(tempDirectory, 'uploads'),
       kind: 'ai',
-      file: new File(['ai-bytes'], 'alpha-ai.png', { type: 'image/png' }),
+      file: createPngFile('alpha-ai.png', 'ai-bytes'),
     });
 
     const uploadedRealAsset = await uploadAsset({
       db,
       uploadsDir: join(tempDirectory, 'uploads'),
       kind: 'real',
-      file: new File(['real-bytes'], 'beta-real.jpg', { type: 'image/jpeg' }),
+      file: createJpegFile('beta-real.jpg', 'real-bytes'),
     });
 
     const uploadedAudioAsset = await uploadAsset({
@@ -108,9 +130,7 @@ describe('assets-service', () => {
     });
 
     await expect(access(join(tempDirectory, uploadedAiAsset.filePath))).resolves.toBeUndefined();
-    await expect(readFile(join(tempDirectory, uploadedAiAsset.filePath), 'utf8')).resolves.toBe(
-      'ai-bytes',
-    );
+    await expect(readFile(join(tempDirectory, uploadedAiAsset.filePath))).resolves.toBeInstanceOf(Buffer);
 
     const realAssets = listAssets({
       db,
@@ -300,7 +320,7 @@ describe('assets-service', () => {
           db,
           uploadsDir: join(tempDirectory, 'uploads'),
           kind: 'real',
-          file: new File([`real-${index}`], `real-${index + 1}.png`, { type: 'image/png' }),
+          file: createPngFile(`real-${index + 1}.png`, `real-${index}`),
         }),
       );
     }
@@ -313,7 +333,7 @@ describe('assets-service', () => {
           db,
           uploadsDir: join(tempDirectory, 'uploads'),
           kind: 'ai',
-          file: new File([`ai-${index}`], `ai-${index + 1}.png`, { type: 'image/png' }),
+          file: createPngFile(`ai-${index + 1}.png`, `ai-${index}`),
         }),
       );
     }
@@ -360,14 +380,14 @@ describe('assets-service', () => {
       db,
       uploadsDir: join(tempDirectory, 'uploads'),
       kind: 'real',
-      file: new File(['real-bytes'], 'real-1.png', { type: 'image/png' }),
+      file: createPngFile('real-1.png', 'real-bytes'),
     });
 
     const uploadedAiAsset = await uploadAsset({
       db,
       uploadsDir: join(tempDirectory, 'uploads'),
       kind: 'ai',
-      file: new File(['ai-bytes'], 'ai-1.png', { type: 'image/png' }),
+      file: createPngFile('ai-1.png', 'ai-bytes'),
     });
 
     expect(() =>
@@ -414,7 +434,7 @@ describe('assets-service', () => {
       db,
       uploadsDir: join(tempDirectory, 'uploads'),
       kind: 'real',
-      file: new File(['real-bytes'], 'portrait.jpg', { type: 'image/jpeg' }),
+      file: createJpegFile('portrait.jpg', 'real-bytes'),
     });
 
     expect(() =>

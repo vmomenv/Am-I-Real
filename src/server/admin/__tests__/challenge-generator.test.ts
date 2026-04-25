@@ -106,6 +106,48 @@ describe('challenge-generator', () => {
     db.close();
   });
 
+  it('prioritizes unseen ai assets in the next round before repeating seen ones', async () => {
+    const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
+    bootstrapDatabase(db);
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `real-${index + 1}`,
+        kind: 'real',
+        filePath: `uploads/real/real-${index + 1}.png`,
+      });
+    }
+
+    for (let index = 0; index < 10; index += 1) {
+      insertAsset(db, {
+        id: `ai-${index + 1}`,
+        kind: 'ai',
+        filePath: `uploads/ai/ai-${index + 1}.png`,
+      });
+    }
+
+    const { createChallengePlan } = await import('@/src/server/admin/challenge-generator');
+
+    const plan = createChallengePlan({
+      db,
+      totalRounds: 2,
+      rng: createSequenceRng(Array.from({ length: 32 }, () => 0.5)),
+    });
+
+    const firstRoundAiIds = new Set(
+      plan[0].options.filter((option) => option.id.startsWith('ai-')).map((option) => option.id),
+    );
+    const secondRoundAiIds = plan[1].options
+      .filter((option) => option.id.startsWith('ai-'))
+      .map((option) => option.id);
+
+    const unseenAiInSecondRound = secondRoundAiIds.filter((id) => !firstRoundAiIds.has(id));
+
+    expect(unseenAiInSecondRound).toHaveLength(2);
+
+    db.close();
+  });
+
   it('randomizes the real-image position per generated session instead of using a fixed round pattern', async () => {
     const db = createDatabase(join(tempDirectory, 'groundflare.sqlite'));
     bootstrapDatabase(db);

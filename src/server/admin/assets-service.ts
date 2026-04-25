@@ -78,6 +78,12 @@ const ALLOWED_MIME_TYPES: Record<AssetKind, Set<string>> = {
   audio: new Set(['audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-wav']),
 };
 
+const IMAGE_MIME_TO_EXTENSION: Record<'image/jpeg' | 'image/png' | 'image/webp', '.jpg' | '.png' | '.webp'> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+};
+
 function getReadyDatabase(db = getDatabase()) {
   bootstrapDatabase(db);
   return db;
@@ -136,12 +142,74 @@ function validateMimeType(kind: AssetKind, file: File) {
   }
 }
 
+function detectImageMimeType(fileBuffer: Buffer) {
+  if (
+    fileBuffer.length >= 3 &&
+    fileBuffer[0] === 0xff &&
+    fileBuffer[1] === 0xd8 &&
+    fileBuffer[2] === 0xff
+  ) {
+    return 'image/jpeg' as const;
+  }
+
+  if (
+    fileBuffer.length >= 8 &&
+    fileBuffer[0] === 0x89 &&
+    fileBuffer[1] === 0x50 &&
+    fileBuffer[2] === 0x4e &&
+    fileBuffer[3] === 0x47 &&
+    fileBuffer[4] === 0x0d &&
+    fileBuffer[5] === 0x0a &&
+    fileBuffer[6] === 0x1a &&
+    fileBuffer[7] === 0x0a
+  ) {
+    return 'image/png' as const;
+  }
+
+  if (
+    fileBuffer.length >= 12 &&
+    fileBuffer[0] === 0x52 &&
+    fileBuffer[1] === 0x49 &&
+    fileBuffer[2] === 0x46 &&
+    fileBuffer[3] === 0x46 &&
+    fileBuffer[8] === 0x57 &&
+    fileBuffer[9] === 0x45 &&
+    fileBuffer[10] === 0x42 &&
+    fileBuffer[11] === 0x50
+  ) {
+    return 'image/webp' as const;
+  }
+
+  return null;
+}
+
 export async function uploadAsset(input: UploadAssetInput) {
   const db = getReadyDatabase(input.db);
+  const fileBuffer = Buffer.from(await input.file.arrayBuffer());
 
-  validateMimeType(input.kind, input.file);
+  let normalizedMimeType = input.file.type;
+  let extensionOverride: string | undefined;
+
+  if (input.kind === 'ai' || input.kind === 'real') {
+    const detectedMimeType = detectImageMimeType(fileBuffer);
+
+    if (!detectedMimeType) {
+      throw new AssetServiceError(
+        'INVALID_FILE_TYPE',
+        'Uploaded image content must be a valid JPEG, PNG, or WebP file.',
+        400,
+      );
+    }
+
+    normalizedMimeType = detectedMimeType;
+    extensionOverride = IMAGE_MIME_TO_EXTENSION[detectedMimeType];
+  } else {
+    validateMimeType(input.kind, input.file);
+  }
 
   const storedFile = await storeUploadedFile({
+    extensionOverride,
+    fileBuffer,
     uploadsDir: getUploadsDirectory(input.uploadsDir),
     kind: input.kind,
     file: input.file,
@@ -174,7 +242,7 @@ export async function uploadAsset(input: UploadAssetInput) {
     kind: input.kind,
     filePath: storedFile.filePath,
     originalFilename: input.file.name,
-    mimeType: input.file.type,
+    mimeType: normalizedMimeType,
     width: null,
     height: null,
     fileSize: storedFile.fileSize,

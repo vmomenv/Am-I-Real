@@ -57,8 +57,33 @@ function shuffleAssets<T>(assets: T[], rng: () => number) {
   return shuffled;
 }
 
-function takeStableAiWindow(aiAssets: AssetRow[], roundIndex: number) {
-  return Array.from({ length: 8 }, (_, offset) => aiAssets[(roundIndex + offset) % aiAssets.length]);
+function selectAiWindow(
+  aiAssets: AssetRow[],
+  usageCountById: Map<string, number>,
+  lastUsedRoundById: Map<string, number>,
+  orderIndexById: Map<string, number>,
+) {
+  const selectedAiAssets = [...aiAssets]
+    .sort((left, right) => {
+      const leftUsage = usageCountById.get(left.id) ?? 0;
+      const rightUsage = usageCountById.get(right.id) ?? 0;
+
+      if (leftUsage !== rightUsage) {
+        return leftUsage - rightUsage;
+      }
+
+      const leftLastUsed = lastUsedRoundById.get(left.id) ?? -1;
+      const rightLastUsed = lastUsedRoundById.get(right.id) ?? -1;
+
+      if (leftLastUsed !== rightLastUsed) {
+        return leftLastUsed - rightLastUsed;
+      }
+
+      return (orderIndexById.get(left.id) ?? 0) - (orderIndexById.get(right.id) ?? 0);
+    })
+    .slice(0, 8);
+
+  return selectedAiAssets;
 }
 
 function toPublicAssetUrl(filePath: string) {
@@ -78,12 +103,21 @@ export function createChallengePlan(input: {
   const rng = input.rng ?? Math.random;
   const realAssets = shuffleAssets(listActiveAssets(db, 'real'), rng);
   const aiAssets = shuffleAssets(listActiveAssets(db, 'ai'), rng);
+  const usageCountById = new Map<string, number>();
+  const lastUsedRoundById = new Map<string, number>();
+  const orderIndexById = new Map(aiAssets.map((asset, index) => [asset.id, index]));
 
   assertPoolSizes(realAssets, aiAssets, input.totalRounds);
 
   return Array.from({ length: input.totalRounds }, (_, roundIndex) => {
     const realAsset = realAssets[roundIndex];
-    const aiWindow = takeStableAiWindow(aiAssets, roundIndex);
+    const aiWindow = selectAiWindow(aiAssets, usageCountById, lastUsedRoundById, orderIndexById);
+
+    for (const aiAsset of aiWindow) {
+      usageCountById.set(aiAsset.id, (usageCountById.get(aiAsset.id) ?? 0) + 1);
+      lastUsedRoundById.set(aiAsset.id, roundIndex);
+    }
+
     const realPosition = getRealPosition(rng);
     const options = aiWindow.map((asset, optionIndex) => ({
       id: asset.id,
