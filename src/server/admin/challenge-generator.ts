@@ -57,33 +57,19 @@ function shuffleAssets<T>(assets: T[], rng: () => number) {
   return shuffled;
 }
 
-function selectAiWindow(
-  aiAssets: AssetRow[],
-  usageCountById: Map<string, number>,
-  lastUsedRoundById: Map<string, number>,
-  orderIndexById: Map<string, number>,
-) {
-  const selectedAiAssets = [...aiAssets]
-    .sort((left, right) => {
-      const leftUsage = usageCountById.get(left.id) ?? 0;
-      const rightUsage = usageCountById.get(right.id) ?? 0;
+function refillAiQueue(queue: AssetRow[], aiAssets: AssetRow[], rng: () => number) {
+  const queuedIds = new Set(queue.map((asset) => asset.id));
+  const nextCycle = shuffleAssets(aiAssets, rng).filter((asset) => !queuedIds.has(asset.id));
 
-      if (leftUsage !== rightUsage) {
-        return leftUsage - rightUsage;
-      }
+  queue.push(...nextCycle);
+}
 
-      const leftLastUsed = lastUsedRoundById.get(left.id) ?? -1;
-      const rightLastUsed = lastUsedRoundById.get(right.id) ?? -1;
+function selectAiWindow(aiQueue: AssetRow[], aiAssets: AssetRow[], rng: () => number) {
+  while (aiQueue.length < 8) {
+    refillAiQueue(aiQueue, aiAssets, rng);
+  }
 
-      if (leftLastUsed !== rightLastUsed) {
-        return leftLastUsed - rightLastUsed;
-      }
-
-      return (orderIndexById.get(left.id) ?? 0) - (orderIndexById.get(right.id) ?? 0);
-    })
-    .slice(0, 8);
-
-  return selectedAiAssets;
+  return aiQueue.splice(0, 8);
 }
 
 function toPublicAssetUrl(filePath: string) {
@@ -103,20 +89,13 @@ export function createChallengePlan(input: {
   const rng = input.rng ?? Math.random;
   const realAssets = shuffleAssets(listActiveAssets(db, 'real'), rng);
   const aiAssets = shuffleAssets(listActiveAssets(db, 'ai'), rng);
-  const usageCountById = new Map<string, number>();
-  const lastUsedRoundById = new Map<string, number>();
-  const orderIndexById = new Map(aiAssets.map((asset, index) => [asset.id, index]));
+  const aiQueue = [...aiAssets];
 
   assertPoolSizes(realAssets, aiAssets, input.totalRounds);
 
   return Array.from({ length: input.totalRounds }, (_, roundIndex) => {
     const realAsset = realAssets[roundIndex];
-    const aiWindow = selectAiWindow(aiAssets, usageCountById, lastUsedRoundById, orderIndexById);
-
-    for (const aiAsset of aiWindow) {
-      usageCountById.set(aiAsset.id, (usageCountById.get(aiAsset.id) ?? 0) + 1);
-      lastUsedRoundById.set(aiAsset.id, roundIndex);
-    }
+    const aiWindow = selectAiWindow(aiQueue, aiAssets, rng);
 
     const realPosition = getRealPosition(rng);
     const options = aiWindow.map((asset, optionIndex) => ({
