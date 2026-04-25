@@ -19,9 +19,12 @@ export function VerificationShell({
     <main className="flex min-h-screen items-center justify-center px-6 py-20">
       <section className="w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">{brandName}</p>
-            <p className="mt-1 text-xs text-slate-500">Security verification service</p>
+          <div className="flex h-12 items-center overflow-hidden rounded-md">
+            <img
+              alt={brandName}
+              className="h-full w-auto object-contain"
+              src="/logo.png"
+            />
           </div>
           <p className="text-xs text-slate-400">Ray ID: APM-114514</p>
         </header>
